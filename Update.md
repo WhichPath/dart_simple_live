@@ -18,7 +18,7 @@
 - `update:` 重复弹幕过滤支持主 App 全平台和 TV 端，默认关闭；同一用户在最近 N 条内发送相同内容时只显示一次，默认窗口为 10。
 - `update:` TV 端弹幕设置新增重复过滤开关和过滤窗口选项。
 - `update:` 实时字幕模型路径选择改为优先选择模型文件夹，适配一个模型由多个文件组成的情况。
-- `update:` 实时字幕模型说明补充百度网盘镜像：`https://pan.baidu.com/s/17ToLCOaK71zkl1s6c8ZKpg?pwd=6699`，提取码 `6699`。
+- `update:` 实时字幕模型说明补充百度网盘镜像：[点击下载字幕模型](https://pan.baidu.com/s/17ToLCOaK71zkl1s6c8ZKpg?pwd=6699)，提取码 `6699`。
 - `update:` README 写清楚三个字幕模型档位需要下载哪些文件、不需要下载哪些文件，以及“选一个档位，把该档位所有文件放同一个文件夹，再在 App 里选择这个文件夹”的使用方式。
 - `chore:` 本地模型缓存目录为 `C:\softwares\dart_simple_live\models`，仓库 `.gitignore` 已忽略 `models/`，避免大模型进入 git。
 

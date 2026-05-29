@@ -93,7 +93,7 @@ TV 下载建议：
 
 实时字幕不内置模型，需要用户自行下载后在 App 里选择本地模型路径。HuggingFace 下载慢或打不开时，可以用下面的百度网盘镜像。
 
-百度网盘镜像：`https://pan.baidu.com/s/17ToLCOaK71zkl1s6c8ZKpg?pwd=6699`，提取码：`6699`。网盘里包含 `advanced-whisper-large-v3-int8` 等 3 个模型文件夹，下载自己需要的档位即可。
+百度网盘镜像：[点击下载字幕模型](https://pan.baidu.com/s/17ToLCOaK71zkl1s6c8ZKpg?pwd=6699)，提取码：`6699`。网盘里包含 `advanced-whisper-large-v3-int8` 等 3 个模型文件夹，下载自己需要的档位即可。
 
 本地开发机已把三档模型缓存到 `C:\softwares\dart_simple_live\models`，该目录不会提交到 git。
 
