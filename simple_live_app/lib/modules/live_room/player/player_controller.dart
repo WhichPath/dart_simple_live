@@ -457,6 +457,15 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       }
       await windowManager.setFullScreen(true);
       await _waitForWindowsFullScreenState(true);
+      await _applyWindowsFullScreenChrome();
+      unawaited(
+        Future.delayed(const Duration(milliseconds: 900), () async {
+          if (!fullScreenState.value || smallWindowState.value) {
+            return;
+          }
+          await _applyWindowsFullScreenChrome();
+        }),
+      );
       await Future.delayed(const Duration(milliseconds: 32));
     }
     //danmakuController?.clear();
@@ -486,6 +495,9 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     } else {
       await windowManager.setFullScreen(false);
       await _waitForWindowsFullScreenState(false);
+      await windowManager.setResizable(true);
+      await windowManager.setHasShadow(true);
+      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
       await _refreshWindowsWindowBounds();
       if (_windowMaximizedBeforeFullScreen) {
         await windowManager.maximize();
@@ -565,6 +577,21 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       final nudgedSize = Size(size.width + 1, size.height + 1);
       await windowManager.setSize(nudgedSize);
       await windowManager.setSize(size);
+    } catch (e) {
+      Log.logPrint(e);
+    }
+  }
+
+  Future<void> _applyWindowsFullScreenChrome() async {
+    if (!Platform.isWindows) {
+      return;
+    }
+
+    try {
+      await windowManager.setAsFrameless();
+      await windowManager.setResizable(false);
+      await windowManager.setHasShadow(false);
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     } catch (e) {
       Log.logPrint(e);
     }

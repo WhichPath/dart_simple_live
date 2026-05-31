@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,24 @@ import 'package:url_launcher/url_launcher_string.dart';
 class AccountController extends GetxController {
   static const _douyinHomeUrl = "https://www.douyin.com/";
   static const _douyinAppUrl = "snssdk1128://";
+
+  final douyinCookieCountdownTick = 0.obs;
+  Timer? _douyinCookieCountdownTimer;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _douyinCookieCountdownTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => douyinCookieCountdownTick.value++,
+    );
+  }
+
+  @override
+  void onClose() {
+    _douyinCookieCountdownTimer?.cancel();
+    super.onClose();
+  }
 
   void bilibiliTap() async {
     if (BiliBiliAccountService.instance.logined.value) {
@@ -151,6 +170,7 @@ class AccountController extends GetxController {
           await Utils.showAlertDialog("确定要清除自定义抖音 Cookie 吗？", title: "清除配置");
       if (result) {
         DouyinAccountService.instance.clearCookie();
+        douyinCookieCountdownTick.value++;
         SmartDialog.showToast("已清除自定义 Cookie，将使用默认 ttwid");
       }
     }
@@ -206,6 +226,16 @@ class AccountController extends GetxController {
       displayText = savedCookie.substring(6);
     }
     var controller = TextEditingController(text: displayText);
+    final expiryText = ValueNotifier(_getDouyinCookieExpiryText(displayText));
+    void updateExpiryText() {
+      expiryText.value = _getDouyinCookieExpiryText(controller.text);
+    }
+
+    controller.addListener(updateExpiryText);
+    final timer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => updateExpiryText(),
+    );
 
     Get.dialog(
       AlertDialog(
@@ -234,6 +264,16 @@ class AccountController extends GetxController {
                 ),
               ),
               const SizedBox(height: 8),
+              ValueListenableBuilder<String>(
+                valueListenable: expiryText,
+                builder: (context, value, child) {
+                  return Text(
+                    value,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: () {
                   var defaultValue = DouyinSite.kDefaultCookie;
@@ -241,6 +281,7 @@ class AccountController extends GetxController {
                     defaultValue = defaultValue.substring(6);
                   }
                   controller.text = defaultValue;
+                  updateExpiryText();
                 },
                 icon: const Icon(Icons.restore),
                 label: const Text("恢复默认 ttwid"),
@@ -259,10 +300,12 @@ class AccountController extends GetxController {
               Get.back();
               if (input.isEmpty) {
                 DouyinAccountService.instance.clearCookie();
+                douyinCookieCountdownTick.value++;
                 SmartDialog.showToast("已清除自定义 Cookie，将使用默认 ttwid");
               } else {
                 var cookie = _normalizeDouyinCookieInput(input);
                 DouyinAccountService.instance.setCookie(cookie);
+                douyinCookieCountdownTick.value++;
                 if (_isOnlyDouyinTtwid(cookie)) {
                   SmartDialog.showToast("已保存 ttwid；搜索仍可能需要完整登录 Cookie");
                 } else {
@@ -274,7 +317,30 @@ class AccountController extends GetxController {
           ),
         ],
       ),
-    );
+    ).whenComplete(() {
+      timer.cancel();
+      controller.removeListener(updateExpiryText);
+      controller.dispose();
+      expiryText.dispose();
+    });
+  }
+
+  String getDouyinCookieSummaryText() {
+    douyinCookieCountdownTick.value;
+    DouyinAccountService.instance.hasCookie.value;
+    final cookie = DouyinAccountService.instance.cookie;
+    if (cookie.isEmpty) {
+      return "使用默认 ttwid，搜索受限时可配置完整 Cookie";
+    }
+    final expiry = _parseDouyinCookieExpiry(cookie);
+    if (expiry == null) {
+      return "已自定义（${cookie.length} 字符），有效期无法判断";
+    }
+    final remain = expiry.difference(DateTime.now());
+    if (remain.isNegative) {
+      return "已自定义（${cookie.length} 字符），可解析有效期已过";
+    }
+    return "已自定义（${cookie.length} 字符），预计剩余 ${_formatDurationShort(remain)}";
   }
 
   bool _isOnlyDouyinTtwid(String cookie) {
@@ -318,5 +384,118 @@ class AccountController extends GetxController {
     }
 
     return null;
+  }
+
+  String _getDouyinCookieExpiryText(String input) {
+    final cookie = (_extractDouyinCookieFromHeaderText(input) ?? input).trim();
+    if (cookie.isEmpty) {
+      return "当前使用默认 ttwid，无法判断搜索登录态有效期。";
+    }
+    if (_isOnlyDouyinTtwid(_normalizeDouyinCookieInput(cookie))) {
+      return "当前仅为 ttwid，无法判断搜索登录态有效期；主播 / 房间搜索仍可能需要完整 Cookie。";
+    }
+
+    final expiry = _parseDouyinCookieExpiry(cookie);
+    if (expiry == null) {
+      return "未从 Cookie 中解析到到期时间；Request Headers 不包含标准 Expires，实际有效期以抖音服务端为准。";
+    }
+
+    final remain = expiry.difference(DateTime.now());
+    final expireAt = _formatDateTimeMinute(expiry);
+    if (remain.isNegative) {
+      return "可解析到期时间已过：$expireAt；如果搜索失败，请重新获取 Cookie。";
+    }
+    return "Cookie 预计剩余 ${_formatDurationShort(remain)}，到期时间 $expireAt；退出登录、改密或风控可能提前失效。";
+  }
+
+  DateTime? _parseDouyinCookieExpiry(String input) {
+    final cookie = (_extractDouyinCookieFromHeaderText(input) ?? input).trim();
+    final cookieMap = _parseCookieMap(cookie);
+    final sidGuard = cookieMap["sid_guard"];
+    if (sidGuard == null || sidGuard.isEmpty) {
+      return null;
+    }
+
+    final decoded = _decodeCookieComponent(sidGuard);
+    final parts = decoded.split("|");
+    if (parts.length >= 3) {
+      final loginTime = int.tryParse(parts[1]);
+      final maxAgeSeconds = int.tryParse(parts[2]);
+      if (loginTime != null && maxAgeSeconds != null) {
+        final loginAt = loginTime > 1000000000000
+            ? DateTime.fromMillisecondsSinceEpoch(loginTime, isUtc: true)
+            : DateTime.fromMillisecondsSinceEpoch(
+                loginTime * 1000,
+                isUtc: true,
+              );
+        return loginAt.add(Duration(seconds: maxAgeSeconds)).toLocal();
+      }
+    }
+
+    if (parts.length >= 4) {
+      return _tryParseCookieDate(parts[3]);
+    }
+
+    return null;
+  }
+
+  Map<String, String> _parseCookieMap(String cookie) {
+    final result = <String, String>{};
+    for (final part in cookie.split(";")) {
+      final item = part.trim();
+      if (item.isEmpty) {
+        continue;
+      }
+      final separatorIndex = item.indexOf("=");
+      if (separatorIndex <= 0) {
+        continue;
+      }
+      final key = item.substring(0, separatorIndex).trim();
+      final value = item.substring(separatorIndex + 1).trim();
+      if (key.isNotEmpty) {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+
+  String _decodeCookieComponent(String value) {
+    try {
+      return Uri.decodeQueryComponent(value);
+    } catch (_) {
+      try {
+        return Uri.decodeComponent(value);
+      } catch (_) {
+        return value;
+      }
+    }
+  }
+
+  DateTime? _tryParseCookieDate(String value) {
+    final normalized = value.replaceAll("+", " ").replaceAll("-", " ");
+    try {
+      return HttpDate.parse(normalized).toLocal();
+    } catch (_) {
+      return DateTime.tryParse(normalized)?.toLocal();
+    }
+  }
+
+  String _formatDurationShort(Duration duration) {
+    final days = duration.inDays;
+    final hours = duration.inHours.remainder(24);
+    final minutes = duration.inMinutes.remainder(60);
+    if (days > 0) {
+      return "$days 天 $hours 小时";
+    }
+    if (hours > 0) {
+      return "$hours 小时 $minutes 分钟";
+    }
+    return "${duration.inMinutes} 分钟";
+  }
+
+  String _formatDateTimeMinute(DateTime dateTime) {
+    String twoDigits(int value) => value.toString().padLeft(2, "0");
+    return "${dateTime.year}-${twoDigits(dateTime.month)}-${twoDigits(dateTime.day)} "
+        "${twoDigits(dateTime.hour)}:${twoDigits(dateTime.minute)}";
   }
 }

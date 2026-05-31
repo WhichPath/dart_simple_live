@@ -963,14 +963,16 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ],
           ),
         ),
-        Padding(
-          padding: AppStyle.edgeInsetsA12,
-          child: Text(
-            "实时字幕",
-            style: Get.textTheme.titleSmall,
+        if (LiveSubtitleService.instance.uiEnabled) ...[
+          Padding(
+            padding: AppStyle.edgeInsetsA12,
+            child: Text(
+              "实时字幕",
+              style: Get.textTheme.titleSmall,
+            ),
           ),
-        ),
-        buildSubtitleSettingsCard(),
+          buildSubtitleSettingsCard(),
+        ],
         Padding(
           padding: AppStyle.edgeInsetsA12,
           child: Text(
@@ -1100,15 +1102,16 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                 controller.showAutoExitSheet();
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.subtitles_outlined),
-              title: const Text("实时字幕"),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Get.back();
-                showSubtitleSettingsSheet();
-              },
-            ),
+            if (LiveSubtitleService.instance.uiEnabled)
+              ListTile(
+                leading: const Icon(Icons.subtitles_outlined),
+                title: const Text("实时字幕"),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Get.back();
+                  showSubtitleSettingsSheet();
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.history_outlined),
               title: const Text("观看历史"),
@@ -1174,6 +1177,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   Widget buildSubtitleSettingsCard() {
+    if (!LiveSubtitleService.instance.uiEnabled) {
+      return const SizedBox.shrink();
+    }
     final settings = AppSettingsController.instance;
     return SettingsCard(
       child: Column(
@@ -1341,6 +1347,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   void showSubtitleSettingsSheet() {
+    if (!LiveSubtitleService.instance.uiEnabled) {
+      return;
+    }
     showModalBottomSheet(
       context: Get.context!,
       constraints: const BoxConstraints(maxWidth: 600),
@@ -1370,6 +1379,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   Future<void> pickSubtitleModelPath() async {
+    if (!LiveSubtitleService.instance.uiEnabled) {
+      return;
+    }
     String? selectedPath;
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -1402,6 +1414,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   void showSubtitleModelRecommendations() {
+    if (!LiveSubtitleService.instance.uiEnabled) {
+      return;
+    }
     Get.dialog(
       AlertDialog(
         title: const Text("字幕模型推荐"),

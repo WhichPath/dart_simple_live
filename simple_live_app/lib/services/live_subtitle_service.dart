@@ -45,6 +45,7 @@ class LiveSubtitleModelInfo {
 
 class LiveSubtitleService extends GetxService {
   static LiveSubtitleService get instance => Get.find<LiveSubtitleService>();
+  static const bool kFeatureEnabled = false;
 
   final RxString subtitleText = "".obs;
   final RxBool running = false.obs;
@@ -67,7 +68,10 @@ class LiveSubtitleService extends GetxService {
   bool get isDesktopExperiment =>
       !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
-  bool get canStartRuntime => engine != null || isDesktopExperiment;
+  bool get uiEnabled => kFeatureEnabled;
+
+  bool get canStartRuntime =>
+      kFeatureEnabled && (engine != null || isDesktopExperiment);
 
   String get platformStatusLabel =>
       isDesktopExperiment ? "当前平台可加载本地模型" : "当前平台暂不支持实时识别";
@@ -336,8 +340,7 @@ class LiveSubtitleService extends GetxService {
       _activeDesktopKey = desktopKey;
       _desktopSubscription = desktopEngine.textStream.listen((text) {
         subtitleText.value = text;
-        statusText.value =
-            text.trim().isEmpty ? statusText.value : "字幕识别中";
+        statusText.value = text.trim().isEmpty ? statusText.value : "字幕识别中";
       });
       await desktopEngine.start();
       await _setStartupGuard(false);

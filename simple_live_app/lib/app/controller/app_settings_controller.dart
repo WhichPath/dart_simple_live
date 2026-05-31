@@ -164,18 +164,11 @@ class AppSettingsController extends GetxController {
     customPlayerOutput.value = LocalStorageService.instance
         .getValue(LocalStorageService.kCustomPlayerOutput, false);
 
-    final liveSubtitleStartupGuard = LocalStorageService.instance
-        .getValue(LocalStorageService.kLiveSubtitleStartupGuard, false);
-    if (liveSubtitleStartupGuard) {
-      LocalStorageService.instance
-          .setValue(LocalStorageService.kLiveSubtitleEnable, false);
-      LocalStorageService.instance
-          .setValue(LocalStorageService.kLiveSubtitleStartupGuard, false);
-    }
-    liveSubtitleEnable.value = liveSubtitleStartupGuard
-        ? false
-        : LocalStorageService.instance
-            .getValue(LocalStorageService.kLiveSubtitleEnable, false);
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveSubtitleEnable, false);
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveSubtitleStartupGuard, false);
+    liveSubtitleEnable.value = false;
     liveSubtitleModelPath.value = LocalStorageService.instance
         .getValue(LocalStorageService.kLiveSubtitleModelPath, "");
     liveSubtitleLanguage.value = LocalStorageService.instance

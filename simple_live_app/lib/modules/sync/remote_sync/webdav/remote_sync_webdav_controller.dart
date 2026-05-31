@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -26,6 +25,11 @@ import 'package:simple_live_app/services/bilibili_account_service.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/services/profile_backup_service.dart';
+
+Archive _decodeWebDavBackupArchive(List<int> data) {
+  final zipDecoder = ZipDecoder();
+  return zipDecoder.decodeBytes(data);
+}
 
 class RemoteSyncWebDAVController extends BaseController {
   // ui
@@ -244,11 +248,21 @@ class RemoteSyncWebDAVController extends BaseController {
   void doWebDAVRecovery() async {
     SmartDialog.showLoading(msg: "正在恢复到本地");
     try {
-      final data = await davClient.recovery();
-      final archive = await Isolate.run<Archive>(() {
-        final zipDecoder = ZipDecoder();
-        return zipDecoder.decodeBytes(data);
-      });
+      final tempDir = await getTemporaryDirectory();
+      final downloadPath = join(
+        tempDir.path,
+        "simple_live_webdav_backup.zip",
+      );
+      final downloadFile = File(downloadPath);
+      if (downloadFile.existsSync()) {
+        downloadFile.deleteSync();
+      }
+      await davClient.client.read2File(davClient.backupFile, downloadPath);
+      if (!downloadFile.existsSync() || downloadFile.lengthSync() <= 0) {
+        throw const FormatException("WebDAV 备份文件下载失败");
+      }
+      final data = await downloadFile.readAsBytes();
+      final archive = _decodeWebDavBackupArchive(data);
       final profileFile = archive
           .where((file) => file.isFile && file.name == _profileJsonName)
           .firstOrNull;
@@ -291,6 +305,14 @@ class RemoteSyncWebDAVController extends BaseController {
       SmartDialog.showToast("恢复失败：${exceptionToString(e)}");
     } finally {
       SmartDialog.dismiss();
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final downloadFile =
+            File(join(tempDir.path, "simple_live_webdav_backup.zip"));
+        if (downloadFile.existsSync()) {
+          downloadFile.deleteSync();
+        }
+      } catch (_) {}
     }
   }
 

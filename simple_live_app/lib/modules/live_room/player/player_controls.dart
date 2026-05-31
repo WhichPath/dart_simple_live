@@ -208,6 +208,9 @@ class _LiveSubtitleOverlayState extends State<_LiveSubtitleOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    if (!LiveSubtitleService.instance.uiEnabled) {
+      return const SizedBox.shrink();
+    }
     return Obx(() {
       final controller = widget.controller;
       final settings = AppSettingsController.instance;
