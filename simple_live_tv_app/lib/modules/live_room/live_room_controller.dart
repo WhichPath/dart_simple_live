@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:canvas_danmaku/models/danmaku_content_item.dart';
 import 'package:flutter/material.dart';
@@ -75,7 +76,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
 
   /// 双击退出Timer
   Timer? doubleClickTimer;
-  final List<String> _recentDanmuFingerprints = <String>[];
+  final Queue<String> _recentDanmuFingerprints = Queue<String>();
+  final Map<String, int> _recentDanmuCounts = <String, int>{};
+  int _recentDanmuEventsSincePrune = 0;
 
   @override
   void onInit() {
@@ -92,6 +95,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     //messages.clear();
 
     liveDanmaku.stop();
+    _clearDanmuDedupeState();
 
     loadData();
   }
@@ -155,21 +159,74 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     if (!settings.danmuDedupeEnable.value) {
       return false;
     }
-    final text = msg.message.trim();
-    if (text.isEmpty) {
+    final fingerprint = _buildDanmuFingerprint(msg);
+    if (fingerprint == null) {
       return false;
     }
     final windowSize = settings.danmuDedupeWindow.value.clamp(1, 100);
-    final fingerprint = "${msg.userName}\u0001$text";
-    final duplicate = _recentDanmuFingerprints.contains(fingerprint);
-    _recentDanmuFingerprints.add(fingerprint);
-    if (_recentDanmuFingerprints.length > windowSize) {
-      _recentDanmuFingerprints.removeRange(
-        0,
-        _recentDanmuFingerprints.length - windowSize,
-      );
+    final step = settings.danmuDedupeStep.value.clamp(1, 20);
+    final duplicate = _recentDanmuCounts.containsKey(fingerprint);
+    _recentDanmuFingerprints.addLast(fingerprint);
+    _recentDanmuCounts[fingerprint] =
+        (_recentDanmuCounts[fingerprint] ?? 0) + 1;
+    _recentDanmuEventsSincePrune += 1;
+    final shouldPrune = _recentDanmuEventsSincePrune >= step ||
+        _recentDanmuFingerprints.length > windowSize + step - 1;
+    if (shouldPrune) {
+      _recentDanmuEventsSincePrune = 0;
+    }
+    while (shouldPrune && _recentDanmuFingerprints.length > windowSize) {
+      final removed = _recentDanmuFingerprints.removeFirst();
+      final count = (_recentDanmuCounts[removed] ?? 0) - 1;
+      if (count <= 0) {
+        _recentDanmuCounts.remove(removed);
+      } else {
+        _recentDanmuCounts[removed] = count;
+      }
     }
     return duplicate;
+  }
+
+  String? _buildDanmuFingerprint(LiveMessage msg) {
+    final userName = _normalizeDanmuFingerprintPart(msg.userName);
+    if (userName.isEmpty) {
+      return null;
+    }
+    final parts = <String>[];
+    final message = _normalizeDanmuFingerprintPart(msg.message);
+    if (message.isNotEmpty) {
+      parts.add("m:$message");
+    }
+    for (final span in msg.spans ?? const <LiveMessageSpan>[]) {
+      final text = _normalizeDanmuFingerprintPart(span.text ?? "");
+      final imageUrl = _normalizeDanmuFingerprintPart(span.imageUrl ?? "");
+      if (text.isNotEmpty) {
+        parts.add("t:$text");
+      }
+      if (imageUrl.isNotEmpty) {
+        parts.add("i:$imageUrl");
+      }
+    }
+    for (final imageUrl in msg.imageUrls ?? const <String>[]) {
+      final value = _normalizeDanmuFingerprintPart(imageUrl);
+      if (value.isNotEmpty) {
+        parts.add("u:$value");
+      }
+    }
+    if (parts.isEmpty) {
+      return null;
+    }
+    return "$userName\u0001${parts.join("\u0002")}";
+  }
+
+  String _normalizeDanmuFingerprintPart(String value) {
+    return value.trim().replaceAll(RegExp(r"\s+"), " ");
+  }
+
+  void _clearDanmuDedupeState() {
+    _recentDanmuFingerprints.clear();
+    _recentDanmuCounts.clear();
+    _recentDanmuEventsSincePrune = 0;
   }
 
   /// 接收 WebSocket 关闭消息
@@ -405,6 +462,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
 
     // 清除全部消息
     liveDanmaku.stop();
+    _clearDanmuDedupeState();
 
     danmakuController?.clear();
 

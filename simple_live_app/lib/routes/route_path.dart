@@ -39,6 +39,9 @@ class RoutePath {
   /// 主页设置
   static const kSettingsIndexed = "/settings/indexed";
 
+  /// 播放页设置
+  static const kSettingsPlaybackPage = "/settings/playback_page";
+
   /// 外观设置
   static const kAppstyleSetting = "/settings/appstyle";
 

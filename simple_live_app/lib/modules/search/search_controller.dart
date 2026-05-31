@@ -10,12 +10,19 @@ class AppSearchController extends GetxController
     with GetSingleTickerProviderStateMixin {
   late TabController tabController;
   int index = 0;
+  static String? _lastSiteId;
 
   var searchMode = 0.obs;
 
   AppSearchController() {
-    tabController =
-        TabController(length: Sites.supportSites.length, vsync: this);
+    final initialIndex = _resolveInitialIndex();
+    index = initialIndex;
+    tabController = TabController(
+      length: Sites.supportSites.length,
+      vsync: this,
+      initialIndex: initialIndex,
+    );
+    _lastSiteId = Sites.supportSites[index].id;
     tabController.animation?.addListener(() {
       var currentIndex = (tabController.animation?.value ?? 0).round();
       if (index == currentIndex) {
@@ -23,6 +30,7 @@ class AppSearchController extends GetxController
       }
 
       index = currentIndex;
+      _lastSiteId = Sites.supportSites[index].id;
       // if (Sites.supportSites[index].id == Constant.kDouyin) {
       //   return;
       // }
@@ -41,6 +49,20 @@ class AppSearchController extends GetxController
   StreamSubscription<dynamic>? streamSubscription;
 
   TextEditingController searchController = TextEditingController();
+
+  int _resolveInitialIndex() {
+    String? siteId;
+    final args = Get.arguments;
+    if (args is Map) {
+      siteId = args["siteId"]?.toString();
+    } else if (args is String) {
+      siteId = args;
+    }
+    siteId ??= _lastSiteId;
+    final resolvedIndex =
+        Sites.supportSites.indexWhere((site) => site.id == siteId);
+    return resolvedIndex < 0 ? 0 : resolvedIndex;
+  }
 
   @override
   void onInit() {

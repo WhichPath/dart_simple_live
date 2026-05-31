@@ -65,6 +65,7 @@ class LocalStorageService extends GetxService {
   /// 重复弹幕过滤
   static const String kDanmuDedupeEnable = "DanmuDedupeEnable";
   static const String kDanmuDedupeWindow = "DanmuDedupeWindow";
+  static const String kDanmuDedupeStep = "DanmuDedupeStep";
 
   /// 硬件解码
   static const String kHardwareDecode = "HardwareDecode";

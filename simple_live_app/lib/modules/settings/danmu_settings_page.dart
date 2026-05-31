@@ -182,6 +182,37 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
               ),
               AppStyle.divider,
               Obx(
+                () => SettingsSwitch(
+                  title: "重复弹幕过滤",
+                  subtitle: "同一用户在最近若干条内重复刷同一句时只显示一次",
+                  value: controller.danmuDedupeEnable.value,
+                  onChanged: controller.setDanmuDedupeEnable,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "过滤窗口",
+                  subtitle: "默认 10 条；窗口越大越容易过滤刷屏",
+                  value: controller.danmuDedupeWindow.value,
+                  min: 1,
+                  max: 100,
+                  onChanged: controller.setDanmuDedupeWindow,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "过滤步长",
+                  subtitle: "默认 2；数值越大检查窗口移动越少",
+                  value: controller.danmuDedupeStep.value,
+                  min: 1,
+                  max: 20,
+                  onChanged: controller.setDanmuDedupeStep,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
                 () => SettingsNumber(
                   title: "显示区域",
                   value: (controller.danmuArea.value * 100).toInt(),

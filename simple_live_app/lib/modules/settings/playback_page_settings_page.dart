@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/constant.dart';
-import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/settings/indexed_settings/indexed_settings_controller.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 
-class IndexedSettingsPage extends GetView<IndexedSettingsController> {
-  const IndexedSettingsPage({Key? key}) : super(key: key);
+class PlaybackPageSettingsPage extends GetView<IndexedSettingsController> {
+  const PlaybackPageSettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("主页设置"),
+        title: const Text("播放页设置"),
       ),
       body: ListView(
         padding: AppStyle.pagePadding(),
@@ -21,7 +20,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
           Padding(
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
-              "主页排序 (长按拖动排序，重启后生效)",
+              "播放页标签顺序",
               style: Get.textTheme.titleSmall,
             ),
           ),
@@ -30,15 +29,15 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
               () => ReorderableListView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                onReorder: controller.updateHomeSort,
-                children: controller.homeSort.map(
+                onReorder: controller.updateLiveRoomTabSort,
+                children: controller.liveRoomTabSort.map(
                   (key) {
-                    var e = Constant.allHomePages[key]!;
+                    final item = Constant.allLiveRoomTabs[key]!;
                     return ListTile(
-                      key: ValueKey(e.title),
-                      title: Text(e.title),
+                      key: ValueKey("tab_$key"),
+                      title: Text(item.title),
                       visualDensity: VisualDensity.compact,
-                      leading: Icon(e.iconData),
+                      leading: Icon(item.iconData),
                       trailing: const Icon(Icons.drag_handle),
                     );
                   },
@@ -49,7 +48,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
           Padding(
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
-              "平台排序 (长按拖动排序，重启后生效)",
+              "全屏长按快捷入口",
               style: Get.textTheme.titleSmall,
             ),
           ),
@@ -58,20 +57,33 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
               () => ReorderableListView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                onReorder: controller.updateSiteSort,
-                children: controller.siteSort.map(
+                onReorder: controller.updateLiveRoomQuickAccessSort,
+                children: controller.liveRoomQuickAccessSort.map(
                   (key) {
-                    var e = Sites.allSites[key]!;
+                    final item = Constant.allLiveRoomQuickAccess[key]!;
+                    final enabled =
+                        controller.liveRoomQuickAccessEnabled.contains(key);
                     return ListTile(
-                      key: ValueKey(e.id),
+                      key: ValueKey("quick_$key"),
+                      leading: Icon(item.iconData),
+                      title: Text(item.title),
+                      subtitle: Text(item.subtitle),
                       visualDensity: VisualDensity.compact,
-                      title: Text(e.name),
-                      leading: Image.asset(
-                        e.logo,
-                        width: 24,
-                        height: 24,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Switch(
+                            value: enabled,
+                            onChanged: (value) {
+                              controller.setLiveRoomQuickAccessEnabled(
+                                key,
+                                value,
+                              );
+                            },
+                          ),
+                          const Icon(Icons.drag_handle),
+                        ],
                       ),
-                      trailing: const Icon(Icons.drag_handle),
                     );
                   },
                 ).toList(),

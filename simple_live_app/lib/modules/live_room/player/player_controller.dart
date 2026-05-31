@@ -449,14 +449,15 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     } else {
       _windowMaximizedBeforeFullScreen = await windowManager.isMaximized();
       if (_windowMaximizedBeforeFullScreen) {
-        final maximizedBounds = await windowManager.getBounds();
         await windowManager.restore();
         await _waitForWindowMaximizedState(false);
-        await _waitForWindowBoundsToChange(maximizedBounds);
-        await Future.delayed(const Duration(milliseconds: 120));
+        await windowManager.setSize(const Size(1280, 720));
+        await windowManager.center();
+        await Future.delayed(const Duration(milliseconds: 240));
       }
       await windowManager.setFullScreen(true);
-      await Future.delayed(const Duration(milliseconds: 16));
+      await _waitForWindowsFullScreenState(true);
+      await Future.delayed(const Duration(milliseconds: 32));
     }
     //danmakuController?.clear();
   }
@@ -484,7 +485,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       await Future.delayed(const Duration(milliseconds: 32));
     } else {
       await windowManager.setFullScreen(false);
-      await Future.delayed(const Duration(milliseconds: 16));
+      await _waitForWindowsFullScreenState(false);
       await _refreshWindowsWindowBounds();
       if (_windowMaximizedBeforeFullScreen) {
         await windowManager.maximize();
@@ -511,6 +512,21 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     final deadline = DateTime.now().add(const Duration(milliseconds: 600));
     while (DateTime.now().isBefore(deadline)) {
       if (await windowManager.isMaximized() == value) {
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 16));
+    }
+  }
+
+  Future<void> _waitForWindowsFullScreenState(bool value) async {
+    if (!Platform.isWindows) {
+      await Future.delayed(const Duration(milliseconds: 16));
+      return;
+    }
+
+    final deadline = DateTime.now().add(const Duration(milliseconds: 800));
+    while (DateTime.now().isBefore(deadline)) {
+      if (await windowManager.isFullScreen() == value) {
         return;
       }
       await Future.delayed(const Duration(milliseconds: 16));
@@ -591,7 +607,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     }
 
     await windowManager.setAlwaysOnTop(true);
-    rebuildDanmakuView(clearCurrent: false);
+    danmakuController?.resume();
   }
 
   ///退出小窗模式()
@@ -617,7 +633,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       await _refreshWindowsWindowBounds();
     }
     _windowMaximizedBeforeSmallWindow = false;
-    rebuildDanmakuView(clearCurrent: false);
+    danmakuController?.resume();
     onPlayerWindowModeExited();
     //windowManager.setAlignment(Alignment.center);
   }
@@ -637,21 +653,40 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     if (!showDanmakuState.value) {
       danmakuController?.clear();
     } else {
-      rebuildDanmakuView(clearCurrent: false);
+      danmakuController?.resume();
     }
   }
 
   Future<void> toggleMute() async {
     if (mutedState.value) {
-      mutedState.value = false;
       final restoreVolume =
           _volumeBeforeMute <= 0 ? 100.0 : _volumeBeforeMute.clamp(0.0, 100.0);
-      await player.setVolume(restoreVolume);
+      await setSessionPlayerVolume(restoreVolume);
       return;
     }
-    _volumeBeforeMute = player.state.volume;
+    _volumeBeforeMute = player.state.volume <= 0
+        ? AppSettingsController.instance.playerVolume.value
+        : player.state.volume;
     mutedState.value = true;
     await player.setVolume(0);
+  }
+
+  Future<void> setSessionPlayerVolume(
+    double volume, {
+    bool persist = false,
+  }) async {
+    final value = volume.clamp(0.0, 100.0).toDouble();
+    if (value <= 0) {
+      mutedState.value = true;
+      await player.setVolume(0);
+    } else {
+      mutedState.value = false;
+      _volumeBeforeMute = value;
+      await player.setVolume(value);
+    }
+    if (persist) {
+      AppSettingsController.instance.setPlayerVolume(value);
+    }
   }
 
   /// 设置横屏
@@ -799,7 +834,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     _autoPipOnLeaveConfigured = false;
     showDanmakuState.value = danmakuStateBeforePIP;
     if (showDanmakuState.value) {
-      rebuildDanmakuView(clearCurrent: false);
+      danmakuController?.resume();
     }
   }
 
@@ -1012,14 +1047,7 @@ mixin PlayerGestureControlMixin
 
   Future _realSetVolume(int volume) async {
     Log.logPrint(volume);
-    if (volume <= 0) {
-      mutedState.value = true;
-      await player.setVolume(0);
-    } else {
-      mutedState.value = false;
-      _volumeBeforeMute = volume.toDouble();
-      await player.setVolume(volume.toDouble());
-    }
+    await setSessionPlayerVolume(volume.toDouble());
     await VolumeController.instance.setVolume(volume / 100);
   }
 

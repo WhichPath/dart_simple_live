@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 class AccountController extends GetxController {
   static const _douyinHomeUrl = "https://www.douyin.com/";
+  static const _douyinAppUrl = "snssdk1128://";
 
   void bilibiliTap() async {
     if (BiliBiliAccountService.instance.logined.value) {
@@ -93,13 +94,29 @@ class AccountController extends GetxController {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.open_in_browser),
-            title: const Text("浏览器登录后粘贴 Cookie"),
-            subtitle: const Text("使用系统浏览器打开抖音，登录后回到这里粘贴完整 Cookie"),
+            leading: Icon(
+              Platform.isAndroid || Platform.isIOS
+                  ? Icons.phone_android
+                  : Icons.open_in_browser,
+            ),
+            title: Text(
+              Platform.isAndroid || Platform.isIOS
+                  ? "打开抖音 App"
+                  : "浏览器登录后粘贴 Cookie",
+            ),
+            subtitle: Text(
+              Platform.isAndroid || Platform.isIOS
+                  ? "手机网页会引导下载 App；Cookie 请从电脑浏览器获取完整 Cookie 后粘贴或同步"
+                  : "使用系统浏览器打开抖音，登录后回到这里粘贴完整 Cookie",
+            ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
               Get.back();
-              await openDouyinInBrowserThenConfigCookie();
+              if (Platform.isAndroid || Platform.isIOS) {
+                await openDouyinApp();
+              } else {
+                await openDouyinInBrowserThenConfigCookie();
+              }
             },
           ),
           ListTile(
@@ -140,11 +157,45 @@ class AccountController extends GetxController {
   }
 
   Future<void> openDouyinInBrowserThenConfigCookie() async {
-    await launchUrlString(
-      _douyinHomeUrl,
-      mode: LaunchMode.externalApplication,
-    );
+    try {
+      final opened = await launchUrlString(
+        _douyinHomeUrl,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        SmartDialog.showToast("无法打开系统浏览器，请手动打开 www.douyin.com 后粘贴 Cookie");
+      }
+    } catch (_) {
+      SmartDialog.showToast("无法打开系统浏览器，请手动打开 www.douyin.com 后粘贴 Cookie");
+    }
     doDouyinCookieConfig();
+  }
+
+  Future<void> openDouyinApp() async {
+    var opened = false;
+    try {
+      opened = await launchUrlString(
+        _douyinAppUrl,
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && Platform.isAndroid) {
+      try {
+        opened = await launchUrlString(
+          "market://details?id=com.ss.android.ugc.aweme",
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {
+        opened = false;
+      }
+    }
+    if (!opened) {
+      SmartDialog.showToast("无法打开抖音 App，请确认已安装");
+      return;
+    }
+    SmartDialog.showToast("已打开抖音 App；搜索所需 Cookie 仍需粘贴完整网页登录 Cookie");
   }
 
   void doDouyinCookieConfig() {
@@ -165,7 +216,12 @@ class AccountController extends GetxController {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "默认内置 ttwid 可用于播放；房间名/主播名搜索被要求登录时，请粘贴自己账号的完整 www.douyin.com Cookie。",
+                "默认内置 ttwid 可用于播放；房间名/主播名搜索被要求登录时，不能只填 ttwid，需要粘贴登录后的完整 www.douyin.com Cookie。",
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "电脑端获取方式：F12 打开开发者工具，在 Network 里点 www.douyin.com/aweme/v1/web/live/search/ 或其他 www.douyin.com 请求，复制 Request Headers 里的 Cookie 整行。",
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),
@@ -173,7 +229,7 @@ class AccountController extends GetxController {
                 controller: controller,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  hintText: "可粘贴完整 Cookie，也可只粘贴 ttwid 值",
+                  hintText: "搜索请粘贴完整 Cookie；只填 ttwid 只能作为播放兜底",
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -205,12 +261,13 @@ class AccountController extends GetxController {
                 DouyinAccountService.instance.clearCookie();
                 SmartDialog.showToast("已清除自定义 Cookie，将使用默认 ttwid");
               } else {
-                var cookie = input;
-                if (!input.contains("=")) {
-                  cookie = 'ttwid=$input';
-                }
+                var cookie = _normalizeDouyinCookieInput(input);
                 DouyinAccountService.instance.setCookie(cookie);
-                SmartDialog.showToast("抖音 Cookie 已保存");
+                if (_isOnlyDouyinTtwid(cookie)) {
+                  SmartDialog.showToast("已保存 ttwid；搜索仍可能需要完整登录 Cookie");
+                } else {
+                  SmartDialog.showToast("抖音 Cookie 已保存");
+                }
               }
             },
             child: const Text("确定"),
@@ -218,5 +275,21 @@ class AccountController extends GetxController {
         ],
       ),
     );
+  }
+
+  bool _isOnlyDouyinTtwid(String cookie) {
+    final normalized = cookie.trim().toLowerCase();
+    return normalized.startsWith("ttwid=") && !normalized.contains(";");
+  }
+
+  String _normalizeDouyinCookieInput(String input) {
+    var cookie = input.trim();
+    if (cookie.toLowerCase().startsWith("cookie:")) {
+      cookie = cookie.substring(cookie.indexOf(":") + 1).trim();
+    }
+    if (!cookie.contains("=")) {
+      cookie = 'ttwid=$cookie';
+    }
+    return cookie;
   }
 }

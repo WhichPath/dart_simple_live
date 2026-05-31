@@ -927,6 +927,19 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   },
                 ),
               ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "过滤步长",
+                  subtitle: "默认 2；数值越大检查窗口移动越少",
+                  value: AppSettingsController.instance.danmuDedupeStep.value,
+                  min: 1,
+                  max: 20,
+                  onChanged: (e) {
+                    AppSettingsController.instance.setDanmuDedupeStep(e);
+                  },
+                ),
+              ),
               if (controller.supportsContributionRank) ...[
                 AppStyle.divider,
                 Obx(
@@ -1174,6 +1187,10 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               value: settings.liveSubtitleEnable.value,
               onChanged: (e) async {
                 if (e) {
+                  if (!LiveSubtitleService.instance.canStartRuntime) {
+                    SmartDialog.showToast("当前平台暂不支持实时字幕识别");
+                    return;
+                  }
                   final hasModel = await LiveSubtitleService.instance
                       .validateModelPath(settings.liveSubtitleModelPath.value);
                   if (!hasModel) {
@@ -1192,8 +1209,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               final modelPath = settings.liveSubtitleModelPath.value;
               final label = modelPath.isEmpty ? "未选择" : p.basename(modelPath);
               return SettingsAction(
-                title: "模型路径",
-                subtitle: modelPath.isEmpty ? "不内置模型，需用户自行下载并选择" : modelPath,
+                title: "模型关键文件",
+                subtitle:
+                    LiveSubtitleService.instance.modelPathSubtitle(modelPath),
                 value: label,
                 onTap: pickSubtitleModelPath,
               );
@@ -1238,16 +1256,82 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           ),
           AppStyle.divider,
           Obx(
+            () => SettingsNumber(
+              title: "水平位置",
+              value: (settings.liveSubtitleOffsetX.value * 100).round(),
+              min: 5,
+              max: 95,
+              unit: "%",
+              onChanged: (e) {
+                settings.setLiveSubtitleOffset(x: e / 100);
+              },
+            ),
+          ),
+          AppStyle.divider,
+          Obx(
+            () => SettingsNumber(
+              title: "垂直位置",
+              value: (settings.liveSubtitleOffsetY.value * 100).round(),
+              min: 8,
+              max: 92,
+              unit: "%",
+              onChanged: (e) {
+                settings.setLiveSubtitleOffset(y: e / 100);
+              },
+            ),
+          ),
+          AppStyle.divider,
+          Obx(
             () => SettingsMenu<int>(
-              title: "字幕位置",
-              value: settings.liveSubtitlePosition.value,
+              title: "字幕颜色",
+              value: settings.liveSubtitleColor.value,
               valueMap: const {
-                0: "上方",
-                1: "中间",
-                2: "下方",
+                0xffffffff: "白色",
+                0xffffeb3b: "黄色",
+                0xff80cbc4: "青绿色",
+                0xffffb3c7: "粉色",
+                0xff111111: "黑色",
               },
               onChanged: (e) {
-                settings.setLiveSubtitlePosition(e);
+                settings.setLiveSubtitleColor(e);
+              },
+            ),
+          ),
+          AppStyle.divider,
+          Obx(
+            () => SettingsMenu<int>(
+              title: "字幕粗细",
+              value: settings.liveSubtitleFontWeight.value,
+              valueMap: const {
+                4: "正常",
+                5: "中等",
+                6: "半粗",
+                7: "加粗",
+                8: "很粗",
+              },
+              onChanged: (e) {
+                settings.setLiveSubtitleFontWeight(e);
+              },
+            ),
+          ),
+          AppStyle.divider,
+          Obx(
+            () => SettingsSwitch(
+              title: "字幕背景",
+              value: settings.liveSubtitleBackgroundEnable.value,
+              onChanged: (e) {
+                settings.setLiveSubtitleBackgroundEnable(e);
+              },
+            ),
+          ),
+          AppStyle.divider,
+          Obx(
+            () => SettingsSwitch(
+              title: "锁定字幕位置",
+              subtitle: "锁定后播放页只显示字幕，鼠标悬停时显示解锁按钮",
+              value: settings.liveSubtitlePositionLocked.value,
+              onChanged: (e) {
+                settings.setLiveSubtitlePositionLocked(e);
               },
             ),
           ),
@@ -1288,21 +1372,32 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   Future<void> pickSubtitleModelPath() async {
     String? selectedPath;
     try {
+      final result = await FilePicker.platform.pickFiles(
+        dialogTitle: "选择字幕模型关键 onnx 文件",
+        type: FileType.custom,
+        allowedExtensions: const ["onnx"],
+      );
+      selectedPath = result?.files.single.path;
+    } catch (_) {
       selectedPath = await FilePicker.platform.getDirectoryPath(
         dialogTitle: "选择字幕模型文件夹",
       );
-    } catch (_) {
-      final result = await FilePicker.platform.pickFiles();
-      selectedPath = result?.files.single.path;
     }
     if (selectedPath == null || selectedPath.isEmpty) {
       return;
     }
-    if (!await LiveSubtitleService.instance.validateModelPath(selectedPath)) {
-      SmartDialog.showToast("模型路径不存在");
+    final info = await LiveSubtitleService.instance.inspectModelPath(
+      selectedPath,
+    );
+    if (info == null) {
+      SmartDialog.showToast("未识别模型，请选择推荐模型的关键 onnx 文件");
       return;
     }
-    AppSettingsController.instance.setLiveSubtitleModelPath(selectedPath);
+    if (!info.isValid) {
+      SmartDialog.showToast("模型缺少：${info.missingFileNames.join("、")}");
+      return;
+    }
+    AppSettingsController.instance.setLiveSubtitleModelPath(info.keyFilePath);
     await LiveSubtitleService.instance.syncPreviewFromSettings();
   }
 
@@ -1317,28 +1412,28 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               Padding(
                 padding: EdgeInsets.only(bottom: 8),
                 child: Text(
-                  "选一个档位，下载该档位列出的全部文件，放到同一个文件夹；App 里选择这个文件夹。其他 .weights、非 int8 onnx 和 test_wavs 不用下载。蓝奏云/百度网盘镜像链接后续看 README。",
+                  "选一个档位，下载该档位列出的全部文件，放到同一个文件夹；App 里选择关键 onnx 文件。其他 .weights、非 int8 onnx 和 test_wavs 不用下载。蓝奏云/百度网盘镜像链接看 README。",
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
               _SubtitleModelTile(
                 title: "高级（高性能桌面）",
                 subtitle:
-                    "下载：large-v3-encoder.int8.onnx、large-v3-decoder.int8.onnx、large-v3-tokens.txt。不要下 .weights 或无 int8 的 onnx。",
+                    "下载：large-v3-encoder.int8.onnx、large-v3-decoder.int8.onnx、large-v3-tokens.txt。App 里选 encoder 这个 onnx。",
                 url:
                     "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-large-v3",
               ),
               _SubtitleModelTile(
                 title: "中级（中文直播优先）",
                 subtitle:
-                    "下载：model.int8.onnx、tokens.txt、config.yaml、am.mvn。中文直播优先推荐这个。",
+                    "下载：model.int8.onnx、tokens.txt、config.yaml、am.mvn。App 里选 model.int8.onnx。",
                 url:
                     "https://huggingface.co/csukuangfj/sherpa-onnx-paraformer-zh-2023-09-14",
               ),
               _SubtitleModelTile(
                 title: "甜点级（先试这个）",
                 subtitle:
-                    "下载：encoder-epoch-99-avg-1.int8.onnx、decoder-epoch-99-avg-1.int8.onnx、joiner-epoch-99-avg-1.int8.onnx、tokens.txt、bpe.model、bpe.vocab。",
+                    "下载：encoder-epoch-99-avg-1.int8.onnx、decoder-epoch-99-avg-1.int8.onnx、joiner-epoch-99-avg-1.int8.onnx、tokens.txt、bpe.model、bpe.vocab。App 里选 encoder 这个 onnx。",
                 url:
                     "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20",
               ),
@@ -1440,12 +1535,12 @@ class _InteractiveChatText extends StatelessWidget {
             if (span.isText)
               TextSpan(text: span.text)
             else if (span.isImage)
-              _buildImageSpan(span.imageUrl!.trim())
-            else ...[
-              TextSpan(text: message),
-              for (final url in imageUrls ?? const <String>[])
-                if (url.trim().isNotEmpty) _buildImageSpan(url.trim()),
-            ],
+              _buildImageSpan(span.imageUrl!.trim()),
+        if (richSpans.isEmpty) ...[
+          TextSpan(text: message),
+          for (final url in imageUrls ?? const <String>[])
+            if (url.trim().isNotEmpty) _buildImageSpan(url.trim()),
+        ],
       ],
     );
   }

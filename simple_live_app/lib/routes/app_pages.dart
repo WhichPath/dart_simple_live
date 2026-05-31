@@ -46,6 +46,7 @@ import 'package:simple_live_app/modules/settings/indexed_settings/indexed_settin
 import 'package:simple_live_app/modules/settings/indexed_settings/indexed_settings_page.dart';
 import 'package:simple_live_app/modules/settings/other/other_settings_controller.dart';
 import 'package:simple_live_app/modules/settings/other/other_settings_page.dart';
+import 'package:simple_live_app/modules/settings/playback_page_settings_page.dart';
 import 'package:simple_live_app/modules/settings/play_settings_page.dart';
 
 import '../modules/indexed/indexed_page.dart';
@@ -165,6 +166,14 @@ class AppPages {
     GetPage(
       name: RoutePath.kSettingsIndexed,
       page: () => const IndexedSettingsPage(),
+      bindings: [
+        BindingsBuilder.put(() => IndexedSettingsController()),
+      ],
+    ),
+    //播放页设置
+    GetPage(
+      name: RoutePath.kSettingsPlaybackPage,
+      page: () => const PlaybackPageSettingsPage(),
       bindings: [
         BindingsBuilder.put(() => IndexedSettingsController()),
       ],

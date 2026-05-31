@@ -468,6 +468,24 @@ class SettingsPage extends GetView<SettingsController> {
             },
           ),
         ),
+        AppStyle.vGap24,
+        Obx(
+          () => SettingsItemWidget(
+            foucsNode: controller.danmakuDedupeStepFoucsNode,
+            autofocus: controller.danmakuDedupeStepFoucsNode.isFoucsed.value,
+            title: "过滤步长",
+            items: const {
+              1: "1",
+              2: "2",
+              3: "3",
+              5: "5",
+            },
+            value: AppSettingsController.instance.danmuDedupeStep.value,
+            onChanged: (e) {
+              AppSettingsController.instance.setDanmuDedupeStep(e);
+            },
+          ),
+        ),
       ],
     );
   }

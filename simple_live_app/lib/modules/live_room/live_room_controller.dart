@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -144,7 +145,9 @@ class LiveRoomController extends PlayerController
   bool _roomDisposed = false;
   int _loadGeneration = 0;
   final Set<String> _superChatFingerprints = <String>{};
-  final List<String> _recentDanmuFingerprints = <String>[];
+  final Queue<String> _recentDanmuFingerprints = Queue<String>();
+  final Map<String, int> _recentDanmuCounts = <String, int>{};
+  int _recentDanmuEventsSincePrune = 0;
   final Set<Timer> _pendingDanmakuTimers = <Timer>{};
   Timer? _superChatRefreshTimer;
   Timer? _chatBottomRestoreTimer;
@@ -229,21 +232,74 @@ class LiveRoomController extends PlayerController
     if (!settings.danmuDedupeEnable.value) {
       return false;
     }
-    final text = msg.message.trim();
-    if (text.isEmpty) {
+    final fingerprint = _buildDanmuFingerprint(msg);
+    if (fingerprint == null) {
       return false;
     }
     final windowSize = settings.danmuDedupeWindow.value.clamp(1, 100);
-    final fingerprint = "${msg.userName}\u0001$text";
-    final duplicate = _recentDanmuFingerprints.contains(fingerprint);
-    _recentDanmuFingerprints.add(fingerprint);
-    if (_recentDanmuFingerprints.length > windowSize) {
-      _recentDanmuFingerprints.removeRange(
-        0,
-        _recentDanmuFingerprints.length - windowSize,
-      );
+    final step = settings.danmuDedupeStep.value.clamp(1, 20);
+    final duplicate = _recentDanmuCounts.containsKey(fingerprint);
+    _recentDanmuFingerprints.addLast(fingerprint);
+    _recentDanmuCounts[fingerprint] =
+        (_recentDanmuCounts[fingerprint] ?? 0) + 1;
+    _recentDanmuEventsSincePrune += 1;
+    final shouldPrune = _recentDanmuEventsSincePrune >= step ||
+        _recentDanmuFingerprints.length > windowSize + step - 1;
+    if (shouldPrune) {
+      _recentDanmuEventsSincePrune = 0;
+    }
+    while (shouldPrune && _recentDanmuFingerprints.length > windowSize) {
+      final removed = _recentDanmuFingerprints.removeFirst();
+      final count = (_recentDanmuCounts[removed] ?? 0) - 1;
+      if (count <= 0) {
+        _recentDanmuCounts.remove(removed);
+      } else {
+        _recentDanmuCounts[removed] = count;
+      }
     }
     return duplicate;
+  }
+
+  String? _buildDanmuFingerprint(LiveMessage msg) {
+    final userName = _normalizeDanmuFingerprintPart(msg.userName);
+    if (userName.isEmpty) {
+      return null;
+    }
+    final parts = <String>[];
+    final message = _normalizeDanmuFingerprintPart(msg.message);
+    if (message.isNotEmpty) {
+      parts.add("m:$message");
+    }
+    for (final span in msg.spans ?? const <LiveMessageSpan>[]) {
+      final text = _normalizeDanmuFingerprintPart(span.text ?? "");
+      final imageUrl = _normalizeDanmuFingerprintPart(span.imageUrl ?? "");
+      if (text.isNotEmpty) {
+        parts.add("t:$text");
+      }
+      if (imageUrl.isNotEmpty) {
+        parts.add("i:$imageUrl");
+      }
+    }
+    for (final imageUrl in msg.imageUrls ?? const <String>[]) {
+      final value = _normalizeDanmuFingerprintPart(imageUrl);
+      if (value.isNotEmpty) {
+        parts.add("u:$value");
+      }
+    }
+    if (parts.isEmpty) {
+      return null;
+    }
+    return "$userName\u0001${parts.join("\u0002")}";
+  }
+
+  String _normalizeDanmuFingerprintPart(String value) {
+    return value.trim().replaceAll(RegExp(r"\s+"), " ");
+  }
+
+  void _clearDanmuDedupeState() {
+    _recentDanmuFingerprints.clear();
+    _recentDanmuCounts.clear();
+    _recentDanmuEventsSincePrune = 0;
   }
 
   List<LiveSuperChatMessage> get sortedSuperChats {
@@ -307,6 +363,7 @@ class LiveRoomController extends PlayerController
       data: message.data,
       color: message.color,
       imageUrls: message.imageUrls,
+      spans: message.spans,
     );
   }
 
@@ -767,8 +824,8 @@ class LiveRoomController extends PlayerController
     if (!showDanmakuState.value) {
       return;
     }
-    Log.d("$reason 后刷新了弹幕覆盖层");
-    rebuildDanmakuView();
+    Log.d("$reason 后恢复弹幕覆盖层");
+    danmakuController?.resume();
   }
 
   void _clearContributionRankState() {
@@ -898,6 +955,7 @@ class LiveRoomController extends PlayerController
 
   void refreshRoom() {
     //messages.clear();
+    _clearDanmuDedupeState();
     _clearSuperChatState();
     _clearContributionRankState();
     liveDanmaku.stop();
@@ -1284,7 +1342,12 @@ class LiveRoomController extends PlayerController
           httpHeaders: playHeaders,
         ),
       );
-      unawaited(LiveSubtitleService.instance.syncPreviewFromSettings());
+      unawaited(
+        LiveSubtitleService.instance.syncPreviewFromSettings(
+          mediaUrl: finalUrl,
+          httpHeaders: playHeaders,
+        ),
+      );
       Log.d("播放链接\n$finalUrl");
     } finally {
       _playerReopening = false;
@@ -1589,8 +1652,7 @@ class LiveRoomController extends PlayerController
                 max: 100,
                 value: AppSettingsController.instance.playerVolume.value,
                 onChanged: (newValue) {
-                  player.setVolume(newValue);
-                  AppSettingsController.instance.setPlayerVolume(newValue);
+                  setSessionPlayerVolume(newValue, persist: true);
                 },
               ),
             ),
@@ -1748,6 +1810,22 @@ class LiveRoomController extends PlayerController
 
   bool get useFullscreenSidePanelMenus =>
       fullScreenState.value && (Platform.isAndroid || Platform.isIOS);
+
+  List<String> get enabledQuickAccessKeys {
+    final settings = AppSettingsController.instance;
+    return settings.liveRoomQuickAccessSort
+        .where((key) =>
+            settings.liveRoomQuickAccessEnabled.contains(key) &&
+            Constant.allLiveRoomQuickAccess.containsKey(key))
+        .toList();
+  }
+
+  String quickAccessSubtitle(String key) {
+    if (key == "recommendation") {
+      return currentRecommendationSubtitle;
+    }
+    return Constant.allLiveRoomQuickAccess[key]?.subtitle ?? "";
+  }
 
   Widget buildHistorySelection({
     required VoidCallback onClose,
@@ -2096,41 +2174,36 @@ class LiveRoomController extends PlayerController
   }
 
   void showQuickAccessSheet() {
+    final keys = enabledQuickAccessKeys;
     Utils.showBottomSheet(
       title: "快捷入口",
       child: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.playlist_play_outlined),
-            title: const Text("关注列表"),
-            subtitle: const Text("快速切到已关注的直播间"),
-            onTap: () {
-              Get.back();
-              showFollowUserSheet();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.history_outlined),
-            title: const Text("观看历史"),
-            subtitle: const Text("打开已经看过的直播间记录"),
-            onTap: () {
-              Get.back();
-              openHistoryPage();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.interests_outlined),
-            title: const Text("同类推荐"),
-            subtitle: Text(currentRecommendationSubtitle),
-            enabled: hasCategoryRecommendation,
-            onTap: !hasCategoryRecommendation
+        children: keys.map((key) {
+          final item = Constant.allLiveRoomQuickAccess[key]!;
+          final enabled = key != "recommendation" || hasCategoryRecommendation;
+          return ListTile(
+            leading: Icon(item.iconData),
+            title: Text(item.title),
+            subtitle: Text(quickAccessSubtitle(key)),
+            enabled: enabled,
+            onTap: !enabled
                 ? null
                 : () {
                     Get.back();
-                    openCategoryRecommendation();
+                    switch (key) {
+                      case "follow":
+                        showFollowUserSheet();
+                        break;
+                      case "history":
+                        openHistoryPage();
+                        break;
+                      case "recommendation":
+                        openCategoryRecommendation();
+                        break;
+                    }
                   },
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -2353,6 +2426,7 @@ class LiveRoomController extends PlayerController
     // 清理当前房间的会话状态
     await liveDanmaku.stop();
     messages.clear();
+    _clearDanmuDedupeState();
     _clearSuperChatState();
     _clearContributionRankState();
     _cancelPendingDanmakuTimers();
@@ -2392,8 +2466,6 @@ ${errorStackTrace ?? ""}''');
       _backgroundedAt = DateTime.now();
       _positionBeforeBackground = _lastKnownPlayerPosition;
       if (!_allowBackgroundPlayback) {
-        danmakuController?.clear();
-        _cancelPendingDanmakuTimers();
         unawaited(
           AppSettingsController.instance.saveLastLiveRoom(
             siteId: site.id,

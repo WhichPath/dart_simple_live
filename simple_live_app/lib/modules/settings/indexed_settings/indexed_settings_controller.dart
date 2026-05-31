@@ -5,11 +5,17 @@ class IndexedSettingsController extends GetxController {
   RxList<String> siteSort = RxList<String>();
   RxList<String> homeSort = RxList<String>();
   RxList<String> liveRoomTabSort = RxList<String>();
+  RxList<String> liveRoomQuickAccessSort = RxList<String>();
+  RxSet<String> liveRoomQuickAccessEnabled = <String>{}.obs;
   @override
   void onInit() {
     siteSort = AppSettingsController.instance.siteSort;
     homeSort = AppSettingsController.instance.homeSort;
     liveRoomTabSort = AppSettingsController.instance.liveRoomTabSort;
+    liveRoomQuickAccessSort =
+        AppSettingsController.instance.liveRoomQuickAccessSort;
+    liveRoomQuickAccessEnabled =
+        AppSettingsController.instance.liveRoomQuickAccessEnabled;
     super.onInit();
   }
 
@@ -41,5 +47,20 @@ class IndexedSettingsController extends GetxController {
     liveRoomTabSort.insert(newIndex, item);
     // ignore: invalid_use_of_protected_member
     AppSettingsController.instance.setLiveRoomTabSort(liveRoomTabSort.value);
+  }
+
+  void updateLiveRoomQuickAccessSort(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final String item = liveRoomQuickAccessSort.removeAt(oldIndex);
+    liveRoomQuickAccessSort.insert(newIndex, item);
+    AppSettingsController.instance.setLiveRoomQuickAccessSort(
+      liveRoomQuickAccessSort.toList(),
+    );
+  }
+
+  void setLiveRoomQuickAccessEnabled(String key, bool enabled) {
+    AppSettingsController.instance.setLiveRoomQuickAccessEnabled(key, enabled);
   }
 }

@@ -10,6 +10,9 @@ class LocalStorageService extends GetxService {
   static const String kSiteSort = "SiteSort";
   static const String kHomeSort = "HomeSort";
   static const String kLiveRoomTabSort = "LiveRoomTabSort";
+  static const String kLiveRoomQuickAccessSort = "LiveRoomQuickAccessSort";
+  static const String kLiveRoomQuickAccessEnabled =
+      "LiveRoomQuickAccessEnabled";
   static const String kThemeMode = "ThemeMode";
   static const String kDebugModeKey = "DebugMode";
   static const String kDanmuSize = "DanmuSize";
@@ -55,6 +58,7 @@ class LocalStorageService extends GetxService {
   static const String kSuperChatSortDesc = "SuperChatSortDesc";
   static const String kDanmuDedupeEnable = "DanmuDedupeEnable";
   static const String kDanmuDedupeWindow = "DanmuDedupeWindow";
+  static const String kDanmuDedupeStep = "DanmuDedupeStep";
   static const String kBilibiliCookie = "BilibiliCookie";
   static const String kDouyinCookie = "DouyinCookie";
   static const String kStyleColor = "kStyleColor";
@@ -83,6 +87,16 @@ class LocalStorageService extends GetxService {
   static const String kLiveSubtitleLanguage = "LiveSubtitleLanguage";
   static const String kLiveSubtitleFontSize = "LiveSubtitleFontSize";
   static const String kLiveSubtitlePosition = "LiveSubtitlePosition";
+  static const String kLiveSubtitleOffsetX = "LiveSubtitleOffsetX";
+  static const String kLiveSubtitleOffsetY = "LiveSubtitleOffsetY";
+  static const String kLiveSubtitleColor = "LiveSubtitleColor";
+  static const String kLiveSubtitleFontWeight = "LiveSubtitleFontWeight";
+  static const String kLiveSubtitleBackgroundEnable =
+      "LiveSubtitleBackgroundEnable";
+  static const String kLiveSubtitlePositionLocked =
+      "LiveSubtitlePositionLocked";
+  static const String kLiveSubtitleStartupGuard =
+      "LiveSubtitleStartupGuard";
 
   late Box settingsBox;
   late Box<String> shieldBox;

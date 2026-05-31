@@ -38,6 +38,10 @@ class AppSettingsController extends GetxController {
       LocalStorageService.kDanmuDedupeWindow,
       10,
     );
+    danmuDedupeStep.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kDanmuDedupeStep,
+      2,
+    );
     danmuStrokeWidth.value = LocalStorageService.instance
         .getValue(LocalStorageService.kDanmuStrokeWidth, 4.0);
     danmuTopMargin.value = LocalStorageService.instance
@@ -207,6 +211,14 @@ class AppSettingsController extends GetxController {
     danmuDedupeWindow.value = value;
     LocalStorageService.instance
         .setValue(LocalStorageService.kDanmuDedupeWindow, value);
+  }
+
+  var danmuDedupeStep = 2.obs;
+  void setDanmuDedupeStep(int e) {
+    final value = e.clamp(1, 20).toInt();
+    danmuDedupeStep.value = value;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kDanmuDedupeStep, value);
   }
 
   var danmuStrokeWidth = 4.0.obs;

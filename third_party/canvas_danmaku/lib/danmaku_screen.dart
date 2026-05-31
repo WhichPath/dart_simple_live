@@ -105,17 +105,28 @@ class _DanmakuScreenState extends State<DanmakuScreen>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  @override
+  void didUpdateWidget(covariant DanmakuScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isSameOption(oldWidget.option, widget.option)) {
+      updateOption(widget.option);
+    }
+  }
+
   /// 处理 Android/iOS 应用后台或熄屏导致的动画问题
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       pause();
+    } else if (state == AppLifecycleState.resumed) {
+      resume();
     }
   }
 
   @override
   void dispose() {
     _running = false;
+    _controller.running = false;
     WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     _staticAnimationController.dispose();
@@ -355,6 +366,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
     if (_running) {
       setState(() {
         _running = false;
+        _controller.running = false;
       });
       if (_animationController.isAnimating) {
         _animationController.stop();
@@ -371,6 +383,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
     if (!_running) {
       setState(() {
         _running = true;
+        _controller.running = true;
       });
       if (!_animationController.isAnimating) {
         _animationController.repeat();
@@ -391,6 +404,10 @@ class _DanmakuScreenState extends State<DanmakuScreen>
 
     if (option.fontSize != _option.fontSize) {
       needClearParagraph = true;
+    }
+    if (option.duration != _option.duration) {
+      _animationController.duration = Duration(seconds: option.duration);
+      _staticAnimationController.duration = Duration(seconds: option.duration);
     }
 
     /// 需要隐藏弹幕时清理已有弹幕
@@ -440,6 +457,22 @@ class _DanmakuScreenState extends State<DanmakuScreen>
       _animationController.repeat();
     }
     setState(() {});
+  }
+
+  bool _isSameOption(DanmakuOption a, DanmakuOption b) {
+    return a.fontSize == b.fontSize &&
+        a.fontWeight == b.fontWeight &&
+        a.area == b.area &&
+        a.lineHeight == b.lineHeight &&
+        a.duration == b.duration &&
+        a.opacity == b.opacity &&
+        a.hideTop == b.hideTop &&
+        a.hideBottom == b.hideBottom &&
+        a.hideScroll == b.hideScroll &&
+        a.hideSpecial == b.hideSpecial &&
+        a.showStroke == b.showStroke &&
+        a.massiveMode == b.massiveMode &&
+        a.safeArea == b.safeArea;
   }
 
   /// 清空弹幕

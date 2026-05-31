@@ -122,6 +122,10 @@ class AppSettingsController extends GetxController {
       LocalStorageService.kDanmuDedupeWindow,
       10,
     );
+    danmuDedupeStep.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kDanmuDedupeStep,
+      2,
+    );
 
     _loadDanmuDelaySettings();
     _loadUserRemarks();
@@ -160,8 +164,18 @@ class AppSettingsController extends GetxController {
     customPlayerOutput.value = LocalStorageService.instance
         .getValue(LocalStorageService.kCustomPlayerOutput, false);
 
-    liveSubtitleEnable.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kLiveSubtitleEnable, false);
+    final liveSubtitleStartupGuard = LocalStorageService.instance
+        .getValue(LocalStorageService.kLiveSubtitleStartupGuard, false);
+    if (liveSubtitleStartupGuard) {
+      LocalStorageService.instance
+          .setValue(LocalStorageService.kLiveSubtitleEnable, false);
+      LocalStorageService.instance
+          .setValue(LocalStorageService.kLiveSubtitleStartupGuard, false);
+    }
+    liveSubtitleEnable.value = liveSubtitleStartupGuard
+        ? false
+        : LocalStorageService.instance
+            .getValue(LocalStorageService.kLiveSubtitleEnable, false);
     liveSubtitleModelPath.value = LocalStorageService.instance
         .getValue(LocalStorageService.kLiveSubtitleModelPath, "");
     liveSubtitleLanguage.value = LocalStorageService.instance
@@ -170,6 +184,22 @@ class AppSettingsController extends GetxController {
         .getValue(LocalStorageService.kLiveSubtitleFontSize, 18.0);
     liveSubtitlePosition.value = LocalStorageService.instance
         .getValue(LocalStorageService.kLiveSubtitlePosition, 1);
+    liveSubtitleOffsetX.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kLiveSubtitleOffsetX, 0.5);
+    liveSubtitleOffsetY.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kLiveSubtitleOffsetY, 0.82);
+    liveSubtitleColor.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kLiveSubtitleColor, 0xffffffff);
+    liveSubtitleFontWeight.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kLiveSubtitleFontWeight, 6);
+    liveSubtitleBackgroundEnable.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kLiveSubtitleBackgroundEnable,
+      true,
+    );
+    liveSubtitlePositionLocked.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kLiveSubtitlePositionLocked,
+      false,
+    );
 
     videoOutputDriver.value = LocalStorageService.instance.getValue(
       LocalStorageService.kVideoOutputDriver,
@@ -208,6 +238,7 @@ class AppSettingsController extends GetxController {
     initSiteSort();
     initHomeSort();
     initLiveRoomTabSort();
+    initLiveRoomQuickAccessSettings();
   }
 
   bool _loadPipHideDanmu() {
@@ -285,6 +316,35 @@ class AppSettingsController extends GetxController {
       }
     }
     liveRoomTabSort.value = sort;
+  }
+
+  void initLiveRoomQuickAccessSettings() {
+    final keys = Constant.allLiveRoomQuickAccess.keys.toList();
+    var sort = LocalStorageService.instance
+        .getValue(
+          LocalStorageService.kLiveRoomQuickAccessSort,
+          keys.join(","),
+        )
+        .split(",")
+        .where((item) => item.trim().isNotEmpty)
+        .toList();
+    sort.removeWhere((item) => !keys.contains(item));
+    for (final key in keys) {
+      if (!sort.contains(key)) {
+        sort.add(key);
+      }
+    }
+    liveRoomQuickAccessSort.value = sort;
+
+    final enabledRaw = LocalStorageService.instance.getValue(
+      LocalStorageService.kLiveRoomQuickAccessEnabled,
+      keys.join(","),
+    );
+    final enabled =
+        enabledRaw.split(",").where((item) => keys.contains(item)).toSet();
+    liveRoomQuickAccessEnabled
+      ..clear()
+      ..addAll(enabled);
   }
 
   void setNoFirstRun() {
@@ -1584,6 +1644,40 @@ class AppSettingsController extends GetxController {
     );
   }
 
+  RxList<String> liveRoomQuickAccessSort = RxList<String>();
+  RxSet<String> liveRoomQuickAccessEnabled = <String>{}.obs;
+
+  void setLiveRoomQuickAccessSort(List<String> e) {
+    final keys = Constant.allLiveRoomQuickAccess.keys.toList();
+    final value = e.where((item) => keys.contains(item)).toList();
+    for (final key in keys) {
+      if (!value.contains(key)) {
+        value.add(key);
+      }
+    }
+    liveRoomQuickAccessSort.value = value;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomQuickAccessSort,
+      liveRoomQuickAccessSort.join(","),
+    );
+  }
+
+  void setLiveRoomQuickAccessEnabled(String key, bool enabled) {
+    if (!Constant.allLiveRoomQuickAccess.containsKey(key)) {
+      return;
+    }
+    if (enabled) {
+      liveRoomQuickAccessEnabled.add(key);
+    } else {
+      liveRoomQuickAccessEnabled.remove(key);
+    }
+    liveRoomQuickAccessEnabled.refresh();
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomQuickAccessEnabled,
+      liveRoomQuickAccessEnabled.join(","),
+    );
+  }
+
   Rx<double> playerVolume = 100.0.obs;
   void setPlayerVolume(double value) {
     playerVolume.value = value;
@@ -1619,6 +1713,14 @@ class AppSettingsController extends GetxController {
     danmuDedupeWindow.value = value;
     LocalStorageService.instance
         .setValue(LocalStorageService.kDanmuDedupeWindow, value);
+  }
+
+  var danmuDedupeStep = 2.obs;
+  void setDanmuDedupeStep(int e) {
+    final value = e.clamp(1, 20).toInt();
+    danmuDedupeStep.value = value;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kDanmuDedupeStep, value);
   }
 
   var styleColor = 0xff3498db.obs;
@@ -1706,6 +1808,58 @@ class AppSettingsController extends GetxController {
     liveSubtitlePosition.value = value;
     LocalStorageService.instance
         .setValue(LocalStorageService.kLiveSubtitlePosition, value);
+  }
+
+  var liveSubtitleOffsetX = 0.5.obs;
+  var liveSubtitleOffsetY = 0.82.obs;
+  void setLiveSubtitleOffset({
+    double? x,
+    double? y,
+  }) {
+    if (x != null) {
+      final value = x.clamp(0.05, 0.95).toDouble();
+      liveSubtitleOffsetX.value = value;
+      LocalStorageService.instance
+          .setValue(LocalStorageService.kLiveSubtitleOffsetX, value);
+    }
+    if (y != null) {
+      final value = y.clamp(0.08, 0.92).toDouble();
+      liveSubtitleOffsetY.value = value;
+      LocalStorageService.instance
+          .setValue(LocalStorageService.kLiveSubtitleOffsetY, value);
+    }
+  }
+
+  var liveSubtitleColor = 0xffffffff.obs;
+  void setLiveSubtitleColor(int e) {
+    liveSubtitleColor.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveSubtitleColor, e);
+  }
+
+  var liveSubtitleFontWeight = 6.obs;
+  void setLiveSubtitleFontWeight(int e) {
+    final value = e.clamp(1, 9).toInt();
+    liveSubtitleFontWeight.value = value;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveSubtitleFontWeight, value);
+  }
+
+  FontWeight get liveSubtitleResolvedFontWeight =>
+      FontWeight.values[liveSubtitleFontWeight.value.clamp(1, 9).toInt() - 1];
+
+  var liveSubtitleBackgroundEnable = true.obs;
+  void setLiveSubtitleBackgroundEnable(bool e) {
+    liveSubtitleBackgroundEnable.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveSubtitleBackgroundEnable, e);
+  }
+
+  var liveSubtitlePositionLocked = false.obs;
+  void setLiveSubtitlePositionLocked(bool e) {
+    liveSubtitlePositionLocked.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveSubtitlePositionLocked, e);
   }
 
   var videoOutputDriver = "".obs;
