@@ -26,6 +26,9 @@ class AppSettingsController extends GetxController {
   static const int kLiveEventFlowDefaultMinCount = 5;
   static const int kLiveEventFlowMinCount = 2;
   static const int kLiveEventFlowMaxCount = 100;
+  static const int kMultiRoomDefaultGap = 8;
+  static const int kMultiRoomMinGap = 0;
+  static const int kMultiRoomMaxGap = 24;
 
   /// 缩放模式
   var scaleMode = 0.obs;
@@ -185,6 +188,12 @@ class AppSettingsController extends GetxController {
 
     updateFollowThreadCount.value = LocalStorageService.instance
         .getValue(LocalStorageService.kUpdateFollowThreadCount, 8);
+    multiRoomGap.value = _normalizeMultiRoomGap(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kMultiRoomGap,
+        kMultiRoomDefaultGap,
+      ),
+    );
 
     super.onInit();
   }
@@ -568,5 +577,20 @@ class AppSettingsController extends GetxController {
     updateFollowThreadCount.value = e;
     LocalStorageService.instance
         .setValue(LocalStorageService.kUpdateFollowThreadCount, e);
+  }
+
+  var multiRoomGap = kMultiRoomDefaultGap.obs;
+  int get effectiveMultiRoomGap => _normalizeMultiRoomGap(multiRoomGap.value);
+  void setMultiRoomGap(int value) {
+    final normalized = _normalizeMultiRoomGap(value);
+    multiRoomGap.value = normalized;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiRoomGap,
+      normalized,
+    );
+  }
+
+  int _normalizeMultiRoomGap(int value) {
+    return value.clamp(kMultiRoomMinGap, kMultiRoomMaxGap).toInt();
   }
 }

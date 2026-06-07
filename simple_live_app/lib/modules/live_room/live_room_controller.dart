@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/desktop_startup_args.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
@@ -43,13 +44,16 @@ class LiveRoomController extends PlayerController
     with WidgetsBindingObserver, WindowListener {
   final Site pSite;
   final String pRoomId;
+  final bool initialDesktopSidePanelCollapsed;
   late LiveDanmaku liveDanmaku;
   LiveRoomController({
     required this.pSite,
     required this.pRoomId,
+    this.initialDesktopSidePanelCollapsed = false,
   }) {
     rxSite = pSite.obs;
     rxRoomId = pRoomId.obs;
+    desktopSidePanelCollapsed.value = initialDesktopSidePanelCollapsed;
     liveDanmaku = site.liveSite.getDanmaku();
     // 抖音直播间默认按竖屏处理。
     if (site.id == "douyin") {
@@ -173,11 +177,17 @@ class LiveRoomController extends PlayerController
     if (Platform.isWindows) {
       windowManager.addListener(this);
     }
+    if (initialDesktopSidePanelCollapsed ||
+        DesktopStartupArgs.startupCollapseChat) {
+      desktopSidePanelCollapsed.value = true;
+    }
     if (FollowService.instance.followList.isEmpty) {
       FollowService.instance.loadData(updateStatus: false);
     }
     initAutoExit();
-    showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
+    showDanmakuState.value = DesktopStartupArgs.isSecondaryDesktopInstance
+        ? false
+        : AppSettingsController.instance.danmuEnable.value;
     followed.value = DBService.instance.getFollowExist("${site.id}_$roomId");
     loadData();
     _startLiveEventFlowTimer();

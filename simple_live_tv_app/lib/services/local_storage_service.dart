@@ -17,6 +17,9 @@ class LocalStorageService extends GetxService {
   /// 首页排序
   static const String kHomeSort = "HomeSort";
 
+  /// 多开布局间距
+  static const String kMultiRoomGap = "MultiRoomGap";
+
   /// 显示模式
   /// * [0] 跟随系统
   /// * [1] 浅色模式

@@ -201,13 +201,36 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       ),
       Positioned(
         right: 8,
-        top: 8,
+        top: 56,
         child: _buildDesktopOverlayIconButton(
           tooltip: "更多",
           icon: Icons.more_horiz,
           onPressed: showMore,
         ),
       ),
+      if (Platform.isWindows && controller.desktopSidePanelCollapsed.value)
+        Positioned(
+          right: 8,
+          top: 8,
+          child: _buildDesktopOverlayIconButton(
+            tooltip: "关闭",
+            icon: Icons.close,
+            onPressed: () => _handleBack(context),
+          ),
+        ),
+      if (_isDesktop && controller.desktopSidePanelCollapsed.value)
+        Positioned(
+          right: 8,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: _buildDesktopOverlayIconButton(
+              tooltip: "展开聊天区",
+              icon: Icons.chevron_left,
+              onPressed: controller.toggleDesktopSidePanel,
+            ),
+          ),
+        ),
     ];
   }
 
@@ -365,6 +388,16 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   Widget buildPhoneUI(BuildContext context) {
+    if (_isDesktop && controller.desktopSidePanelCollapsed.value) {
+      return Column(
+        children: [
+          Expanded(
+            child: buildMediaPlayer(),
+          ),
+          _buildCollapsedDesktopBottomPanel(context),
+        ],
+      );
+    }
     return Column(
       children: [
         AspectRatio(
@@ -379,94 +412,95 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   Widget buildTabletUI(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                child: buildMediaPlayer(),
-              ),
-              Obx(
-                () => _isDesktop && controller.desktopSidePanelCollapsed.value
-                    ? _buildCollapsedDesktopSidePanel(context)
-                    : _buildExpandedSidePanel(context),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            border: Border(
-              top: BorderSide(
-                color: Colors.grey.withAlpha(25),
-              ),
+    return Obx(() {
+      final collapsed =
+          _isDesktop && controller.desktopSidePanelCollapsed.value;
+      return Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: buildMediaPlayer(),
+                ),
+                if (!collapsed) _buildExpandedSidePanel(context),
+              ],
             ),
           ),
-          padding: AppStyle.edgeInsetsV4.copyWith(
-            bottom: _bottomActionInset(context) + 4,
-          ),
-          child: Row(
-            children: [
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 14),
+          if (!collapsed)
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.grey.withAlpha(25),
+                  ),
                 ),
-                onPressed: controller.refreshRoom,
-                icon: const Icon(Remix.refresh_line),
-                label: const Text("刷新"),
               ),
-              AppStyle.hGap4,
-              Obx(
-                () => controller.followed.value
-                    ? TextButton.icon(
-                        style: TextButton.styleFrom(
-                          textStyle: const TextStyle(fontSize: 14),
-                        ),
-                        onPressed: controller.removeFollowUser,
-                        icon: const Icon(Remix.heart_fill),
-                        label: const Text("取消关注"),
-                      )
-                    : TextButton.icon(
-                        style: TextButton.styleFrom(
-                          textStyle: const TextStyle(fontSize: 14),
-                        ),
-                        onPressed: controller.followUser,
-                        icon: const Icon(Remix.heart_line),
-                        label: const Text("关注"),
-                      ),
+              padding: AppStyle.edgeInsetsV4.copyWith(
+                bottom: _bottomActionInset(context) + 4,
               ),
-              const Expanded(child: Center()),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 14),
-                ),
-                onPressed: controller.share,
-                icon: const Icon(Remix.share_line),
-                label: const Text("分享"),
+              child: Row(
+                children: [
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      textStyle: const TextStyle(fontSize: 14),
+                    ),
+                    onPressed: controller.refreshRoom,
+                    icon: const Icon(Remix.refresh_line),
+                    label: const Text("刷新"),
+                  ),
+                  AppStyle.hGap4,
+                  Obx(
+                    () => controller.followed.value
+                        ? TextButton.icon(
+                            style: TextButton.styleFrom(
+                              textStyle: const TextStyle(fontSize: 14),
+                            ),
+                            onPressed: controller.removeFollowUser,
+                            icon: const Icon(Remix.heart_fill),
+                            label: const Text("取消关注"),
+                          )
+                        : TextButton.icon(
+                            style: TextButton.styleFrom(
+                              textStyle: const TextStyle(fontSize: 14),
+                            ),
+                            onPressed: controller.followUser,
+                            icon: const Icon(Remix.heart_line),
+                            label: const Text("关注"),
+                          ),
+                  ),
+                  const Expanded(child: Center()),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      textStyle: const TextStyle(fontSize: 14),
+                    ),
+                    onPressed: controller.share,
+                    icon: const Icon(Remix.share_line),
+                    label: const Text("分享"),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      textStyle: const TextStyle(fontSize: 14),
+                    ),
+                    onPressed: controller.copyUrl,
+                    icon: const Icon(Remix.file_copy_line),
+                    label: const Text("复制链接"),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      textStyle: const TextStyle(fontSize: 14),
+                    ),
+                    onPressed: controller.copyPlayUrl,
+                    icon: const Icon(Remix.file_copy_line),
+                    label: const Text("复制播放直链"),
+                  ),
+                ],
               ),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 14),
-                ),
-                onPressed: controller.copyUrl,
-                icon: const Icon(Remix.file_copy_line),
-                label: const Text("复制链接"),
-              ),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 14),
-                ),
-                onPressed: controller.copyPlayUrl,
-                icon: const Icon(Remix.file_copy_line),
-                label: const Text("复制播放直链"),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+            ),
+        ],
+      );
+    });
   }
 
   Widget _buildExpandedSidePanel(BuildContext context) {
@@ -511,41 +545,41 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
-  Widget _buildCollapsedDesktopSidePanel(BuildContext context) {
-    return SizedBox(
-      width: _desktopSidePanelCollapsedWidth,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          border: Border(
-            left: BorderSide(
-              color: Colors.grey.withAlpha(25),
-            ),
+  Widget _buildCollapsedDesktopBottomPanel(BuildContext context) {
+    return Container(
+      height: 48 + _bottomActionInset(context),
+      padding: EdgeInsets.only(bottom: _bottomActionInset(context)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.withAlpha(25),
           ),
         ),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 40,
-              child: Tooltip(
-                message: "展开聊天区",
-                child: IconButton(
-                  onPressed: controller.toggleDesktopSidePanel,
-                  icon: const Icon(Icons.chevron_left),
-                ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: Tooltip(
+              message: "展开聊天区",
+              child: IconButton(
+                onPressed: controller.toggleDesktopSidePanel,
+                icon: const Icon(Icons.keyboard_arrow_up),
               ),
             ),
-            const Expanded(
-              child: Center(
-                child: Icon(
-                  Icons.chat_bubble_outline,
-                  size: 18,
-                  color: Colors.grey,
-                ),
+          ),
+          const Expanded(
+            child: Center(
+              child: Icon(
+                Icons.chat_bubble_outline,
+                size: 18,
+                color: Colors.grey,
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 56),
+        ],
       ),
     );
   }

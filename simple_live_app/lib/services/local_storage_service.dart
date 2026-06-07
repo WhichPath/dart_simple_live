@@ -19,6 +19,8 @@ class LocalStorageService extends GetxService {
   static const String kRememberWindowPlacement = "RememberWindowPlacement";
   static const String kDesktopWindowBounds = "DesktopWindowBounds";
   static const String kDesktopWindowMaximized = "DesktopWindowMaximized";
+  static const String kMultiRoomGap = "MultiRoomGap";
+  static const String kMultiRoomCollapseChat = "MultiRoomCollapseChat";
   static const String kThemeMode = "ThemeMode";
   static const String kDebugModeKey = "DebugMode";
   static const String kDanmuSize = "DanmuSize";

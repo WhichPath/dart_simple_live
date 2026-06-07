@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/desktop_startup_args.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/app/utils/listen_fourth_button.dart';
@@ -40,11 +41,9 @@ import 'package:window_manager/window_manager.dart';
 import 'package:path/path.dart' as p;
 import 'package:dynamic_color/dynamic_color.dart';
 
-const _secondaryInstanceArg = "--simple-live-secondary-instance";
-const _secondaryInstanceEnv = "SIMPLE_LIVE_SECONDARY_INSTANCE";
-
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  DesktopStartupArgs.initialize(args);
   await migrateData();
   await initWindow();
   MediaKit.ensureInitialized();
@@ -76,11 +75,7 @@ Future<String?> resolveHivePath(List<String> args) async {
 }
 
 bool isSecondaryDesktopInstance(List<String> args) {
-  if (!(Platform.isWindows || Platform.isMacOS)) {
-    return false;
-  }
-  return args.contains(_secondaryInstanceArg) ||
-      Platform.environment[_secondaryInstanceEnv] == "1";
+  return DesktopStartupArgs.isSecondaryDesktopInstance;
 }
 
 Future<Directory> prepareSecondaryHiveDirectory(Directory sourceDir) async {
@@ -226,6 +221,14 @@ class _DesktopWindowLifecycle with WindowListener {
   Future<void> restoreWindowPlacement() async {
     _restoring = true;
     try {
+      final startupBounds = DesktopStartupArgs.startupWindowBounds;
+      if (startupBounds != null) {
+        if (DesktopStartupArgs.startupFramelessTile) {
+          await _applyFramelessTileChrome();
+        }
+        await windowManager.setBounds(startupBounds);
+        return;
+      }
       final settings = AppSettingsController.instance;
       if (settings.rememberWindowPlacement.value) {
         final bounds = await _validSavedBounds();
@@ -275,6 +278,20 @@ class _DesktopWindowLifecycle with WindowListener {
       return Rect.fromLTWH(left, top, width, height);
     }
     return null;
+  }
+
+  Future<void> _applyFramelessTileChrome() async {
+    if (!Platform.isWindows) {
+      return;
+    }
+    try {
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(false);
+      await windowManager.setResizable(false);
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+    } catch (e) {
+      Log.logPrint(e);
+    }
   }
 
   void _scheduleSave() {

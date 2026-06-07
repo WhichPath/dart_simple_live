@@ -36,6 +36,9 @@ class AppSettingsController extends GetxController {
   static const int kLiveEventFlowDefaultMinCount = 5;
   static const int kLiveEventFlowMinCount = 2;
   static const int kLiveEventFlowMaxCount = 100;
+  static const int kMultiRoomDefaultGap = 2;
+  static const int kMultiRoomMinGap = 0;
+  static const int kMultiRoomMaxGap = 24;
 
   /// 缩放模式
   var scaleMode = 0.obs;
@@ -303,6 +306,16 @@ class AppSettingsController extends GetxController {
     rememberWindowPlacement.value = LocalStorageService.instance.getValue(
       LocalStorageService.kRememberWindowPlacement,
       false,
+    );
+    multiRoomGap.value = _normalizeMultiRoomGap(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kMultiRoomGap,
+        kMultiRoomDefaultGap,
+      ),
+    );
+    multiRoomCollapseChat.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kMultiRoomCollapseChat,
+      true,
     );
 
     initSiteSort();
@@ -1784,6 +1797,30 @@ class AppSettingsController extends GetxController {
     rememberWindowPlacement.value = value;
     LocalStorageService.instance.setValue(
       LocalStorageService.kRememberWindowPlacement,
+      value,
+    );
+  }
+
+  var multiRoomGap = kMultiRoomDefaultGap.obs;
+  int get effectiveMultiRoomGap => _normalizeMultiRoomGap(multiRoomGap.value);
+  void setMultiRoomGap(int value) {
+    final normalized = _normalizeMultiRoomGap(value);
+    multiRoomGap.value = normalized;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiRoomGap,
+      normalized,
+    );
+  }
+
+  int _normalizeMultiRoomGap(int value) {
+    return value.clamp(kMultiRoomMinGap, kMultiRoomMaxGap).toInt();
+  }
+
+  var multiRoomCollapseChat = true.obs;
+  void setMultiRoomCollapseChat(bool value) {
+    multiRoomCollapseChat.value = value;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiRoomCollapseChat,
       value,
     );
   }

@@ -176,6 +176,17 @@ class MinePage extends StatelessWidget {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Remix.layout_grid_line),
+                  title: const Text("多开设置"),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey,
+                  ),
+                  onTap: () {
+                    Get.toNamed(RoutePath.kSettingsMultiRoom);
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Remix.text),
                   title: const Text("弹幕设置"),
                   trailing: const Icon(

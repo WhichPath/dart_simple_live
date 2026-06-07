@@ -11,7 +11,10 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
+import 'package:simple_live_app/modules/multi_room/multi_room_models.dart';
+import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/services/db_service.dart';
+import 'package:simple_live_app/services/desktop_multi_window_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 
 enum FollowGroupMode {
@@ -39,6 +42,8 @@ class FollowUserController extends BasePageController<FollowUser> {
 
   var groupMode = FollowGroupMode.liveStatus.obs;
   var selectedGroupId = "all".obs;
+  var multiSelectMode = false.obs;
+  RxSet<String> selectedMultiRoomKeys = <String>{}.obs;
   RxList<FollowUserTag> tagList = [
     FollowUserTag(id: "0", tag: "全部", userId: []),
     FollowUserTag(id: "1", tag: "直播中", userId: []),
@@ -245,6 +250,47 @@ class FollowUserController extends BasePageController<FollowUser> {
 
   void updateItem(FollowUser item) {
     FollowService.instance.addFollow(item);
+  }
+
+  bool isSelectedForMultiRoom(FollowUser item) {
+    return selectedMultiRoomKeys.contains(item.id);
+  }
+
+  void toggleMultiSelectMode() {
+    multiSelectMode.value = !multiSelectMode.value;
+    if (!multiSelectMode.value) {
+      selectedMultiRoomKeys.clear();
+    }
+  }
+
+  void toggleMultiRoomItem(FollowUser item) {
+    if (item.liveStatus.value != 2) {
+      SmartDialog.showToast("只能选择直播中的关注");
+      return;
+    }
+    if (selectedMultiRoomKeys.contains(item.id)) {
+      selectedMultiRoomKeys.remove(item.id);
+      return;
+    }
+    selectedMultiRoomKeys.add(item.id);
+  }
+
+  void openSelectedMultiRooms() async {
+    final selected = list
+        .where((item) =>
+            selectedMultiRoomKeys.contains(item.id) &&
+            item.liveStatus.value == 2 &&
+            Sites.allSites.containsKey(item.siteId))
+        .map(MultiRoomItem.fromFollow)
+        .toList();
+    if (selected.length < 2) {
+      SmartDialog.showToast("至少选择 2 个直播中的关注");
+      return;
+    }
+    if (await DesktopMultiWindowService.openRooms(selected)) {
+      return;
+    }
+    AppNavigator.toMultiRoom(selected);
   }
 
   void toggleSpecialFollow(FollowUser item) async {

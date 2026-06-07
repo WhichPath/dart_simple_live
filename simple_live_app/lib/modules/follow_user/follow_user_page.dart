@@ -24,6 +24,33 @@ class FollowUserPage extends GetView<FollowUserController> {
       appBar: AppBar(
         title: const Text("关注用户"),
         actions: [
+          Obx(
+            () => TextButton.icon(
+              onPressed: controller.multiSelectMode.value
+                  ? controller.openSelectedMultiRooms
+                  : controller.toggleMultiSelectMode,
+              icon: Icon(
+                controller.multiSelectMode.value
+                    ? Icons.grid_view
+                    : Icons.grid_view_outlined,
+              ),
+              label: Text(
+                controller.multiSelectMode.value
+                    ? "开始同屏(${controller.selectedMultiRoomKeys.length})"
+                    : "多开同屏",
+              ),
+            ),
+          ),
+          Obx(
+            () => Visibility(
+              visible: controller.multiSelectMode.value,
+              child: IconButton(
+                tooltip: "取消多选",
+                onPressed: controller.toggleMultiSelectMode,
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ),
           PopupMenuButton(
             itemBuilder: (context) {
               return const [
@@ -187,12 +214,17 @@ class FollowUserPage extends GetView<FollowUserController> {
                     controller.removeItem(item);
                   },
                   onTap: () {
+                    if (controller.multiSelectMode.value) {
+                      controller.toggleMultiRoomItem(item);
+                      return;
+                    }
                     AppNavigator.toLiveRoomDetail(
                         site: site, roomId: item.roomId);
                   },
                   onLongPress: () {
                     setFollowTagDialog(item);
                   },
+                  playing: controller.isSelectedForMultiRoom(item),
                 );
               },
             ),

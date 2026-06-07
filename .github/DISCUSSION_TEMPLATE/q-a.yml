@@ -2,6 +2,22 @@ body:
   - type: markdown
     attributes:
       value: |
+        ## 作者的话
+
+        提交 Issue 或 Discussion 前，请保持礼貌、尊重和友善。作者不是任何人的专属开发人员，也只是一个平时有很多事情要忙的学生。清楚描述问题、耐心沟通，以及一句简单的“感谢开发和维护”并不难，也会让开源协作更舒服。
+
+  - type: checkboxes
+    id: author-note
+    attributes:
+      label: 作者的话
+      description: 请确认你理解并愿意保持礼貌、尊重和友善
+      options:
+        - label: 我知道了，会保持礼貌、尊重和友善，理解作者不是我的专属开发人员，也感谢作者开发和维护项目
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
         适合放这里的内容：
         - 安装问答
         - 版本选择
