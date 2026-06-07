@@ -190,47 +190,57 @@ class LiveRoomPage extends GetView<LiveRoomController> {
 
   List<Widget> _buildDesktopOverlayButtons(BuildContext context) {
     return [
-      Positioned(
-        left: 8,
-        top: 8,
-        child: _buildDesktopOverlayIconButton(
-          tooltip: "返回",
-          icon: Icons.arrow_back,
-          onPressed: () => _handleBack(context),
-        ),
-      ),
-      Positioned(
-        right: 8,
-        top: 56,
-        child: _buildDesktopOverlayIconButton(
-          tooltip: "更多",
-          icon: Icons.more_horiz,
-          onPressed: showMore,
-        ),
-      ),
-      if (Platform.isWindows && controller.desktopSidePanelCollapsed.value)
-        Positioned(
-          right: 8,
-          top: 8,
-          child: _buildDesktopOverlayIconButton(
-            tooltip: "关闭",
-            icon: Icons.close,
-            onPressed: () => _handleBack(context),
-          ),
-        ),
-      if (_isDesktop && controller.desktopSidePanelCollapsed.value)
-        Positioned(
-          right: 8,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: _buildDesktopOverlayIconButton(
-              tooltip: "展开聊天区",
-              icon: Icons.chevron_left,
-              onPressed: controller.toggleDesktopSidePanel,
+      Obx(() {
+        if (!controller.showControlsState.value) {
+          return const SizedBox.shrink();
+        }
+        return Stack(
+          children: [
+            Positioned(
+              left: 8,
+              top: 8,
+              child: _buildDesktopOverlayIconButton(
+                tooltip: "返回",
+                icon: Icons.arrow_back,
+                onPressed: () => _handleBack(context),
+              ),
             ),
-          ),
-        ),
+            Positioned(
+              right: 8,
+              top: controller.desktopSidePanelCollapsed.value ? 56 : 8,
+              child: _buildDesktopOverlayIconButton(
+                tooltip: "更多",
+                icon: Icons.more_horiz,
+                onPressed: showMore,
+              ),
+            ),
+            if (Platform.isWindows &&
+                controller.desktopSidePanelCollapsed.value)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: _buildDesktopOverlayIconButton(
+                  tooltip: "关闭",
+                  icon: Icons.close,
+                  onPressed: () => _handleBack(context),
+                ),
+              ),
+            if (_isDesktop && controller.desktopSidePanelCollapsed.value)
+              Positioned(
+                right: 8,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: _buildDesktopOverlayIconButton(
+                    tooltip: "展开聊天区",
+                    icon: Icons.chevron_left,
+                    onPressed: controller.toggleDesktopSidePanel,
+                  ),
+                ),
+              ),
+          ],
+        );
+      }),
     ];
   }
 
@@ -323,7 +333,10 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   Widget buildPageUI() {
     return OrientationBuilder(
       builder: (context, orientation) {
+        final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+        final isCompactMobile = shortestSide < 600;
         final usePortraitLayout = (Platform.isAndroid || Platform.isIOS) &&
+            isCompactMobile &&
             !controller.fullScreenState.value &&
             !controller.smallWindowState.value;
         final effectiveOrientation =
@@ -344,11 +357,15 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               await _handleBack(context);
             },
             child: Scaffold(
-              body: Stack(
-                children: [
-                  body,
-                  ..._buildDesktopOverlayButtons(context),
-                ],
+              body: MouseRegion(
+                onEnter: (_) => controller.showControls(),
+                onHover: (_) => controller.showControls(),
+                child: Stack(
+                  children: [
+                    body,
+                    ..._buildDesktopOverlayButtons(context),
+                  ],
+                ),
               ),
             ),
           );

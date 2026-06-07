@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/constant.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/settings/indexed_settings/indexed_settings_controller.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
+import 'package:simple_live_app/widgets/settings/settings_menu.dart';
 
 class PlaybackPageSettingsPage extends GetView<IndexedSettingsController> {
   const PlaybackPageSettingsPage({super.key});
@@ -90,6 +92,75 @@ class PlaybackPageSettingsPage extends GetView<IndexedSettingsController> {
                   },
                 ).toList(),
               ),
+            ),
+          ),
+          Padding(
+            padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
+            child: Text(
+              "桌面快捷键",
+              style: Get.textTheme.titleSmall,
+            ),
+          ),
+          SettingsCard(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Obx(
+                  () => SettingsMenu<int>(
+                    title: "切换全屏",
+                    subtitle: "仅在直播间且输入框未聚焦时生效",
+                    value: AppSettingsController
+                        .instance.liveRoomShortcutFullScreen.value,
+                    valueMap: AppSettingsController.liveRoomShortcutOptions,
+                    onChanged: AppSettingsController
+                        .instance.setLiveRoomShortcutFullScreen,
+                  ),
+                ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsMenu<int>(
+                    title: "显示/隐藏弹幕",
+                    value: AppSettingsController
+                        .instance.liveRoomShortcutDanmaku.value,
+                    valueMap: AppSettingsController.liveRoomShortcutOptions,
+                    onChanged: AppSettingsController
+                        .instance.setLiveRoomShortcutDanmaku,
+                  ),
+                ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsMenu<int>(
+                    title: "静音/取消静音",
+                    value: AppSettingsController
+                        .instance.liveRoomShortcutMute.value,
+                    valueMap: AppSettingsController.liveRoomShortcutOptions,
+                    onChanged:
+                        AppSettingsController.instance.setLiveRoomShortcutMute,
+                  ),
+                ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsMenu<int>(
+                    title: "刷新直播间",
+                    value: AppSettingsController
+                        .instance.liveRoomShortcutRefresh.value,
+                    valueMap: AppSettingsController.liveRoomShortcutOptions,
+                    onChanged: AppSettingsController
+                        .instance.setLiveRoomShortcutRefresh,
+                  ),
+                ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsMenu<int>(
+                    title: "收起/展开聊天区",
+                    value: AppSettingsController
+                        .instance.liveRoomShortcutToggleChat.value,
+                    valueMap: AppSettingsController.liveRoomShortcutOptions,
+                    onChanged: AppSettingsController
+                        .instance.setLiveRoomShortcutToggleChat,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

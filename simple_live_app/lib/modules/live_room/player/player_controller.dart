@@ -426,7 +426,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       overlays: SystemUiOverlay.values,
     );
 
-    await setPortraitOrientation();
+    await resetPreferredOrientation();
     if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
       // 亮度重置,桌面平台可能会报错,暂时不处理桌面平台的亮度
       try {
@@ -502,7 +502,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         SystemUiMode.edgeToEdge,
         overlays: SystemUiOverlay.values,
       );
-      await setPortraitOrientation();
+      await resetPreferredOrientation();
       await Future.delayed(const Duration(milliseconds: 32));
     } else {
       await windowManager.setFullScreen(false);
@@ -760,6 +760,15 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
       ]);
+    }
+  }
+
+  /// 恢复系统方向，避免平板横屏返回后仍被锁定为手机竖屏。
+  Future resetPreferredOrientation() async {
+    if (await beforeIOS16()) {
+      AutoOrientation.fullAutoMode();
+    } else {
+      await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
   }
 

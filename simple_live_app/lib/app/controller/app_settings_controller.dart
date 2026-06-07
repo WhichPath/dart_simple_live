@@ -9,6 +9,7 @@ import 'package:simple_live_app/services/background_playback_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class AppSettingsController extends GetxController {
@@ -39,6 +40,22 @@ class AppSettingsController extends GetxController {
   static const int kMultiRoomDefaultGap = 2;
   static const int kMultiRoomMinGap = 0;
   static const int kMultiRoomMaxGap = 24;
+  static const int kShortcutDisabled = 0;
+
+  static final Map<int, String> liveRoomShortcutOptions = {
+    kShortcutDisabled: "关闭",
+    LogicalKeyboardKey.keyF.keyId: "F",
+    LogicalKeyboardKey.keyD.keyId: "D",
+    LogicalKeyboardKey.keyM.keyId: "M",
+    LogicalKeyboardKey.keyR.keyId: "R",
+    LogicalKeyboardKey.keyC.keyId: "C",
+    LogicalKeyboardKey.keyQ.keyId: "Q",
+    LogicalKeyboardKey.keyE.keyId: "E",
+    LogicalKeyboardKey.keyT.keyId: "T",
+    LogicalKeyboardKey.keyG.keyId: "G",
+    LogicalKeyboardKey.keyB.keyId: "B",
+    LogicalKeyboardKey.keyN.keyId: "N",
+  };
 
   /// 缩放模式
   var scaleMode = 0.obs;
@@ -322,6 +339,7 @@ class AppSettingsController extends GetxController {
     initHomeSort();
     initLiveRoomTabSort();
     initLiveRoomQuickAccessSettings();
+    initLiveRoomShortcutSettings();
   }
 
   bool _loadPipHideDanmu() {
@@ -428,6 +446,39 @@ class AppSettingsController extends GetxController {
     liveRoomQuickAccessEnabled
       ..clear()
       ..addAll(enabled);
+  }
+
+  void initLiveRoomShortcutSettings() {
+    liveRoomShortcutFullScreen.value = _normalizeLiveRoomShortcut(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveRoomShortcutFullScreen,
+        LogicalKeyboardKey.keyF.keyId,
+      ),
+    );
+    liveRoomShortcutDanmaku.value = _normalizeLiveRoomShortcut(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveRoomShortcutDanmaku,
+        LogicalKeyboardKey.keyD.keyId,
+      ),
+    );
+    liveRoomShortcutMute.value = _normalizeLiveRoomShortcut(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveRoomShortcutMute,
+        LogicalKeyboardKey.keyM.keyId,
+      ),
+    );
+    liveRoomShortcutRefresh.value = _normalizeLiveRoomShortcut(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveRoomShortcutRefresh,
+        LogicalKeyboardKey.keyR.keyId,
+      ),
+    );
+    liveRoomShortcutToggleChat.value = _normalizeLiveRoomShortcut(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveRoomShortcutToggleChat,
+        LogicalKeyboardKey.keyC.keyId,
+      ),
+    );
   }
 
   void setNoFirstRun() {
@@ -1758,6 +1809,62 @@ class AppSettingsController extends GetxController {
     LocalStorageService.instance.setValue(
       LocalStorageService.kLiveRoomQuickAccessEnabled,
       liveRoomQuickAccessEnabled.join(","),
+    );
+  }
+
+  int _normalizeLiveRoomShortcut(int value) {
+    return liveRoomShortcutOptions.containsKey(value)
+        ? value
+        : kShortcutDisabled;
+  }
+
+  var liveRoomShortcutFullScreen = LogicalKeyboardKey.keyF.keyId.obs;
+  void setLiveRoomShortcutFullScreen(int value) {
+    final normalized = _normalizeLiveRoomShortcut(value);
+    liveRoomShortcutFullScreen.value = normalized;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomShortcutFullScreen,
+      normalized,
+    );
+  }
+
+  var liveRoomShortcutDanmaku = LogicalKeyboardKey.keyD.keyId.obs;
+  void setLiveRoomShortcutDanmaku(int value) {
+    final normalized = _normalizeLiveRoomShortcut(value);
+    liveRoomShortcutDanmaku.value = normalized;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomShortcutDanmaku,
+      normalized,
+    );
+  }
+
+  var liveRoomShortcutMute = LogicalKeyboardKey.keyM.keyId.obs;
+  void setLiveRoomShortcutMute(int value) {
+    final normalized = _normalizeLiveRoomShortcut(value);
+    liveRoomShortcutMute.value = normalized;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomShortcutMute,
+      normalized,
+    );
+  }
+
+  var liveRoomShortcutRefresh = LogicalKeyboardKey.keyR.keyId.obs;
+  void setLiveRoomShortcutRefresh(int value) {
+    final normalized = _normalizeLiveRoomShortcut(value);
+    liveRoomShortcutRefresh.value = normalized;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomShortcutRefresh,
+      normalized,
+    );
+  }
+
+  var liveRoomShortcutToggleChat = LogicalKeyboardKey.keyC.keyId.obs;
+  void setLiveRoomShortcutToggleChat(int value) {
+    final normalized = _normalizeLiveRoomShortcut(value);
+    liveRoomShortcutToggleChat.value = normalized;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomShortcutToggleChat,
+      normalized,
     );
   }
 

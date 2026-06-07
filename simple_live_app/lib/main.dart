@@ -647,12 +647,32 @@ class MyApp extends StatelessWidget {
     if (liveRoomController == null) {
       return;
     }
-    if (event.logicalKey == LogicalKeyboardKey.keyF) {
+    final settings = AppSettingsController.instance;
+    final keyId = event.logicalKey.keyId;
+    bool matches(int shortcut) {
+      return shortcut != AppSettingsController.kShortcutDisabled &&
+          shortcut == keyId;
+    }
+
+    if (matches(settings.liveRoomShortcutFullScreen.value)) {
       await liveRoomController.toggleFullScreen();
       return;
     }
-    if (event.logicalKey == LogicalKeyboardKey.keyD) {
+    if (matches(settings.liveRoomShortcutDanmaku.value)) {
       liveRoomController.toggleDanmakuByShortcut();
+      return;
+    }
+    if (matches(settings.liveRoomShortcutMute.value)) {
+      await liveRoomController.toggleMute();
+      return;
+    }
+    if (matches(settings.liveRoomShortcutRefresh.value)) {
+      liveRoomController.refreshRoom();
+      return;
+    }
+    if (matches(settings.liveRoomShortcutToggleChat.value) &&
+        (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      liveRoomController.toggleDesktopSidePanel();
     }
   }
 }
