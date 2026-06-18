@@ -9,6 +9,7 @@ docs/
 issue_logs/
 experience/
 **/android/app/build/
+graphify-out/
 
 # scripts 
 build_android_apk.bat
@@ -33,4 +34,8 @@ fix-guide.md
 tmp_*.png
 tmp_*.xml
 
-.codex/project-experience.md
+.codex/
+
+!.codex/
+.codex/**
+!.codex/project-experience.md
