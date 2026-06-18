@@ -20,7 +20,7 @@ class ProfileBackupService extends GetxService {
 
   static const schema = "simple_live_profile";
   static const schemaVersion = 3;
-  static const Set<int> _supportedSchemaVersions = {2, 3};
+  static const Set<int> _supportedSchemaVersions = {1, 2, 3};
 
   static const Set<String> _excludedSettings = {
     LocalStorageService.kFirstRun,
@@ -86,29 +86,31 @@ class ProfileBackupService extends GetxService {
     if (decoded is! Map) {
       throw const FormatException("不是 Simple Live 配置包");
     }
-    if (decoded["schema"] == schema) {
-      final version = (decoded["schemaVersion"] as num?)?.toInt() ?? 2;
+    final payload = decoded.cast<String, dynamic>();
+    final schemaName = payload["schema"]?.toString() ?? "";
+    final version = (payload["schemaVersion"] as num?)?.toInt() ?? 1;
+    if (schemaName == schema || schemaName == "simple_live_profile") {
       if (!_supportedSchemaVersions.contains(version)) {
         throw const FormatException("暂不支持该配置包版本");
       }
       return importProfileMap(
-        decoded.cast<String, dynamic>(),
+        payload,
         overwrite: overwrite,
         options: options,
         onProgress: onProgress,
       );
     }
-    if (decoded["type"] == "simple_live") {
+    if (payload["type"] == "simple_live") {
       return importLegacyProfileMap(
-        decoded.cast<String, dynamic>(),
+        payload,
         overwrite: overwrite,
         options: options,
         onProgress: onProgress,
       );
     }
-    if (_looksLikeLegacyDataFile(decoded)) {
+    if (_looksLikeLegacyDataFile(payload)) {
       return importLegacyDataFileMap(
-        decoded.cast<String, dynamic>(),
+        payload,
         overwrite: overwrite,
         options: options,
         onProgress: onProgress,
@@ -149,10 +151,15 @@ class ProfileBackupService extends GetxService {
   }
 
   bool isSupportedProfileMap(dynamic payload) {
-    return payload is Map &&
-        (payload["schema"] == schema ||
-            payload["type"] == "simple_live" ||
-            _looksLikeLegacyDataFile(payload));
+    if (payload is! Map) {
+      return false;
+    }
+    final schemaName = payload["schema"]?.toString() ?? "";
+    final version = (payload["schemaVersion"] as num?)?.toInt() ?? 1;
+    return (schemaName == schema || schemaName == "simple_live_profile") &&
+            _supportedSchemaVersions.contains(version) ||
+        payload["type"] == "simple_live" ||
+        _looksLikeLegacyDataFile(payload);
   }
 
   bool _looksLikeLegacyDataFile(dynamic payload) {
